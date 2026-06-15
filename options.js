@@ -40,10 +40,13 @@ function renderPeopleRows(rows) {
   elements.peopleRows.innerHTML = rows.map((row, index) => `
     <tr data-kind="people" data-index="${index}">
       <td><input type="checkbox" data-field="active" ${row.active ? "checked" : ""} /></td>
-      <td>
-        <input data-field="display_name" value="${escapeAttr(row.display_name)}" placeholder="Name" />
-        <span class="subtle-id">${escapeHtml(row.clickup_user_id || "manual")}</span>
-      </td>
+      <td>${renderSourceCell({
+        imported: isImportedId(row.clickup_user_id),
+        label: row.display_name,
+        field: "display_name",
+        placeholder: "Name",
+        meta: row.clickup_user_id || "manual",
+      })}</td>
       <td><input data-field="role" value="${escapeAttr(row.role)}" placeholder="Designer" /></td>
       <td><input data-field="cost_rate" value="${escapeAttr(row.cost_rate)}" inputmode="decimal" placeholder="85" /></td>
       <td><input data-field="default_bill_rate" value="${escapeAttr(row.default_bill_rate)}" inputmode="decimal" placeholder="175" /></td>
@@ -57,10 +60,13 @@ function renderProjectRows(rows) {
   elements.projectRows.innerHTML = rows.map((row, index) => `
     <tr data-kind="project" data-index="${index}">
       <td><input type="checkbox" data-field="active" ${row.active ? "checked" : ""} /></td>
-      <td>
-        <input data-field="scope_name" value="${escapeAttr(row.scope_name)}" placeholder="ClickUp List" />
-        <span class="subtle-id">${escapeHtml(row.scope_type || "list")}: ${escapeHtml(row.scope_id || "manual")}</span>
-      </td>
+      <td>${renderSourceCell({
+        imported: isImportedId(row.scope_id),
+        label: row.scope_name,
+        field: "scope_name",
+        placeholder: "ClickUp List",
+        meta: `${row.scope_type || "list"}: ${row.scope_id || "manual"}`,
+      })}</td>
       <td><input data-field="client" value="${escapeAttr(row.client)}" placeholder="Client" /></td>
       <td><input data-field="project" value="${escapeAttr(row.project)}" placeholder="Project" /></td>
       <td><input data-field="bill_rate" value="${escapeAttr(row.bill_rate)}" inputmode="decimal" placeholder="150" /></td>
@@ -69,6 +75,22 @@ function renderProjectRows(rows) {
       <td><button type="button" class="icon-button" data-action="remove">Remove</button></td>
     </tr>
   `).join("");
+}
+
+function renderSourceCell({ imported, label, field, placeholder, meta }) {
+  if (!imported) {
+    return `
+      <input data-field="${field}" value="${escapeAttr(label)}" placeholder="${escapeAttr(placeholder)}" />
+      <span class="source-meta"><span class="source-badge local">Local</span> ${escapeHtml(meta)}</span>
+    `;
+  }
+
+  return `
+    <div class="source-readonly" title="Synced from ClickUp. Re-import to refresh this value.">
+      <span class="source-label">${escapeHtml(label || "Unnamed")}</span>
+      <span class="source-meta"><span class="source-badge clickup">ClickUp</span> ${escapeHtml(meta)}</span>
+    </div>
+  `;
 }
 
 function collectSettings() {
@@ -159,7 +181,7 @@ function mergePeopleRows(existingRows, users) {
     const existing = rowsById.get(id);
     rowsById.set(id, {
       clickup_user_id: id,
-      display_name: existing?.display_name || user.username || user.name || `User ${id}`,
+      display_name: user.username || user.name || existing?.display_name || `User ${id}`,
       role: existing?.role || "",
       cost_rate: existing?.cost_rate || "",
       default_bill_rate: existing?.default_bill_rate || "",
@@ -180,7 +202,7 @@ function mergeProjectRows(existingRows, entries) {
     rowsById.set(location.id, {
       scope_type: "list",
       scope_id: location.id,
-      scope_name: existing?.scope_name || location.name,
+      scope_name: location.name || existing?.scope_name,
       client: existing?.client || guessed.client,
       project: existing?.project || guessed.project,
       bill_rate: existing?.bill_rate || "",

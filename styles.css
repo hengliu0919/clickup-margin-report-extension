@@ -130,6 +130,14 @@ p {
   margin-top: 12px;
 }
 
+.source-legend {
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 10px;
+}
+
 .section-heading {
   align-items: flex-start;
   display: flex;
@@ -300,6 +308,54 @@ th {
   max-width: 260px;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.source-readonly {
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  min-width: 210px;
+  padding: 7px 8px;
+}
+
+.source-label {
+  display: block;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.source-meta {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  font-size: 11px;
+  gap: 5px;
+  margin-top: 4px;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.source-badge {
+  border-radius: 999px;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1;
+  padding: 3px 6px;
+  text-transform: uppercase;
+}
+
+.source-badge.clickup {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.source-badge.local {
+  background: #e0f2fe;
+  color: #075985;
 }
 
 .icon-button {

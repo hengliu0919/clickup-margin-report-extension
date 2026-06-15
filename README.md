@@ -36,6 +36,8 @@ The options page lets you maintain:
 - project rates keyed by imported ClickUp List ID;
 - validation warnings for missing rates, duplicate rows, and manually added rows that are not connected to ClickUp.
 
+Fields marked `ClickUp` are read-only references synced from the active workspace. Fields marked `Local` or rendered as normal inputs are private margin settings owned by the extension user.
+
 After the rate tables are valid enough, open the extension popup from a ClickUp workspace tab and run the report.
 
 ## Check
@@ -46,11 +48,11 @@ npm run check
 
 ## People Rates
 
-People rows are imported from ClickUp workspace members. The user edits role, cost rate, default bill rate, currency, and whether the person is active in reports.
+People rows are imported from ClickUp workspace members. Name and user ID are read-only ClickUp references. The user edits role, cost rate, default bill rate, currency, and whether the person is active in reports.
 
 ## Project Rates
 
-Project rows are imported from ClickUp Lists that have tracked time in the report window. The user edits client, project, bill rate, budget hours, target margin, and whether the project is active in reports.
+Project rows are imported from ClickUp Lists that have tracked time in the report window. Location name and ID are read-only ClickUp references. The user edits client, project, bill rate, budget hours, target margin, and whether the project is active in reports.
 
 Legacy CSV samples are still kept in `sample-data/` for smoke tests and migration checks.
 
