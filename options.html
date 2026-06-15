@@ -14,7 +14,10 @@
           <h1>ClickUp Margin Report</h1>
           <p>ClickUp data comes from your current logged-in tab. Keep private rates here for now.</p>
         </div>
-        <button id="saveTop">Save</button>
+        <div class="topbar-actions">
+          <div id="topValidationSummary" class="validation-summary"></div>
+          <button id="saveTop">Save</button>
+        </div>
       </div>
 
       <section class="panel">
@@ -34,6 +37,70 @@
           <span><span class="source-badge local">Local</span> editable margin settings</span>
         </div>
         <div id="importStatus" class="status"></div>
+      </section>
+
+      <section class="panel">
+        <div class="section-heading">
+          <div>
+            <h2>Rate Book Storage</h2>
+            <p>Choose where private people rates and project billing settings live.</p>
+          </div>
+          <span class="badge good">This browser active</span>
+        </div>
+
+        <div class="storage-options" aria-label="Rate book storage options">
+          <label class="storage-option selected">
+            <input type="radio" name="storageProvider" value="local" checked />
+            <span>
+              <strong>This browser</strong>
+              <small>Private to this Chrome profile. Fastest path for the MVP.</small>
+            </span>
+          </label>
+          <label class="storage-option disabled" title="Google Sheets storage is still an experiment.">
+            <input type="radio" name="storageProvider" value="google-sheet" disabled />
+            <span>
+              <strong>Google Sheet</strong>
+              <small>Planned storage option after the session-reuse experiment.</small>
+            </span>
+            <span class="badge warning">Experiment</span>
+          </label>
+        </div>
+
+        <div id="storageSummary" class="storage-summary"></div>
+
+        <details class="advanced-actions">
+          <summary>Advanced import/export</summary>
+          <div class="action-groups">
+            <div class="action-group">
+              <h3>People CSV</h3>
+              <p>Edit people rates in a spreadsheet, then import just this table.</p>
+              <div class="actions">
+                <button id="exportPeopleCsv" type="button" class="secondary">Export</button>
+                <button id="importPeopleCsv" type="button" class="secondary">Import</button>
+              </div>
+            </div>
+            <div class="action-group">
+              <h3>Project CSV</h3>
+              <p>Edit project billing settings in a spreadsheet, then import just this table.</p>
+              <div class="actions">
+                <button id="exportProjectCsv" type="button" class="secondary">Export</button>
+                <button id="importProjectCsv" type="button" class="secondary">Import</button>
+              </div>
+            </div>
+            <div class="action-group">
+              <h3>Full backup</h3>
+              <p>Move all local settings between Chrome profiles or machines.</p>
+              <div class="actions">
+                <button id="exportSettings" type="button" class="secondary">Export JSON</button>
+                <button id="importSettings" type="button" class="secondary">Import JSON</button>
+              </div>
+            </div>
+          </div>
+          <input id="importPeopleCsvFile" class="hidden" type="file" accept="text/csv,.csv" />
+          <input id="importProjectCsvFile" class="hidden" type="file" accept="text/csv,.csv" />
+          <input id="importSettingsFile" class="hidden" type="file" accept="application/json,.json" />
+        </details>
+        <div id="backupStatus" class="status"></div>
       </section>
 
       <section class="panel">
@@ -89,27 +156,10 @@
         </div>
       </section>
 
-      <section class="panel">
+      <section id="validationPanel" class="panel hidden">
         <h2>Validation</h2>
         <div id="validationSummary" class="validation-summary"></div>
         <ul id="validationIssues" class="warning-list"></ul>
-      </section>
-
-      <section class="panel">
-        <h2>Local Backup</h2>
-        <p>Rates are stored in this browser profile. Use CSV for editing one table, or JSON for a full restore before switching machines or Chrome profiles.</p>
-        <div class="actions">
-          <button id="exportPeopleCsv" type="button" class="secondary">Export people CSV</button>
-          <button id="importPeopleCsv" type="button" class="secondary">Import people CSV</button>
-          <button id="exportProjectCsv" type="button" class="secondary">Export project CSV</button>
-          <button id="importProjectCsv" type="button" class="secondary">Import project CSV</button>
-          <button id="exportSettings" type="button" class="secondary">Export settings</button>
-          <button id="importSettings" type="button" class="secondary">Import settings</button>
-          <input id="importPeopleCsvFile" class="hidden" type="file" accept="text/csv,.csv" />
-          <input id="importProjectCsvFile" class="hidden" type="file" accept="text/csv,.csv" />
-          <input id="importSettingsFile" class="hidden" type="file" accept="application/json,.json" />
-        </div>
-        <div id="backupStatus" class="status"></div>
       </section>
 
       <section class="panel">

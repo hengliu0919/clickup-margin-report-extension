@@ -33,6 +33,9 @@ const elements = {
   saveStatus: document.querySelector("#saveStatus"),
   importStatus: document.querySelector("#importStatus"),
   backupStatus: document.querySelector("#backupStatus"),
+  storageSummary: document.querySelector("#storageSummary"),
+  topValidationSummary: document.querySelector("#topValidationSummary"),
+  validationPanel: document.querySelector("#validationPanel"),
   validationSummary: document.querySelector("#validationSummary"),
   validationIssues: document.querySelector("#validationIssues"),
   importPeopleCsvFile: document.querySelector("#importPeopleCsvFile"),
@@ -69,6 +72,7 @@ function renderSettings(settings) {
   fields.lookbackDays.value = settings.lookbackDays || 14;
   renderPeopleRows(settings.peopleRates || []);
   renderProjectRows(settings.projectRates || []);
+  renderStorageSummary(settings);
   renderValidation();
 }
 
@@ -375,10 +379,19 @@ function handleTableClick(event) {
 
 function renderValidation() {
   const issues = validateSettings(currentSettings);
-  elements.validationSummary.innerHTML = issues.length
+  const badge = issues.length
     ? `<span class="badge warning">${issues.length} issue${issues.length === 1 ? "" : "s"} to review</span>`
     : `<span class="badge good">Ready enough to run</span>`;
+  elements.topValidationSummary.innerHTML = badge;
+  elements.validationSummary.innerHTML = badge;
+  elements.validationPanel.classList.toggle("hidden", issues.length === 0);
   elements.validationIssues.innerHTML = issues.map((issue) => `<li>${escapeHtml(issue)}</li>`).join("");
+}
+
+function renderStorageSummary(settings) {
+  const peopleCount = (settings.peopleRates || []).length;
+  const projectCount = (settings.projectRates || []).length;
+  elements.storageSummary.textContent = `People rates: ${peopleCount} rows · Project rates: ${projectCount} rows · Last saved in this browser`;
 }
 
 function validateSettings(settings) {

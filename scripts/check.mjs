@@ -20,6 +20,17 @@ for (const file of jsFiles) {
 
 JSON.parse(fs.readFileSync(new URL("manifest.json", root), "utf8"));
 
+const optionsHtml = fs.readFileSync(new URL("options.html", root), "utf8");
+for (const expected of [
+  "Rate Book Storage",
+  "Google Sheet",
+  "Advanced import/export",
+]) {
+  if (!optionsHtml.includes(expected)) {
+    throw new Error(`Options UX is missing "${expected}"`);
+  }
+}
+
 const peopleRatesCsv = fs.readFileSync(new URL("sample-data/people-rates.csv", root), "utf8");
 const projectRatesCsv = fs.readFileSync(new URL("sample-data/project-rates.csv", root), "utf8");
 const { peopleRates, projectRates } = parseRateTables({ peopleRatesCsv, projectRatesCsv });

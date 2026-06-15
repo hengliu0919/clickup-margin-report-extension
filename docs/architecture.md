@@ -35,7 +35,7 @@ flowchart LR
 
 ## Rate Tables
 
-The options page maintains structured tables in browser-local extension storage. Legacy CSV storage is still parsed so older test data and early installs can migrate forward.
+The options page presents those tables as a Rate Book. Current storage is browser-local extension storage, with Google Sheets shown as a future provider. Legacy CSV storage is still parsed so older test data and early installs can migrate forward.
 
 Users can export/import:
 

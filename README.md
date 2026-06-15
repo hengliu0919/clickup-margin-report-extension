@@ -39,7 +39,7 @@ The options page lets you maintain:
 
 Fields marked `ClickUp` are read-only references synced from the active workspace. Fields marked `Local` or rendered as normal inputs are private margin settings owned by the extension user and stored locally in the browser profile.
 
-Use **Local Backup** to export or import either:
+Use **Rate Book Storage** to see the current storage provider. Open **Advanced import/export** to export or import either:
 
 - People CSV only;
 - Project CSV only;
