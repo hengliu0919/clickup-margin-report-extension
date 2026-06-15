@@ -96,6 +96,17 @@
       </section>
 
       <section class="panel">
+        <h2>Local Backup</h2>
+        <p>Rates are stored in this browser profile. Export a JSON backup before switching machines or Chrome profiles.</p>
+        <div class="actions">
+          <button id="exportSettings" type="button" class="secondary">Export settings</button>
+          <button id="importSettings" type="button" class="secondary">Import settings</button>
+          <input id="importSettingsFile" class="hidden" type="file" accept="application/json,.json" />
+        </div>
+        <div id="backupStatus" class="status"></div>
+      </section>
+
+      <section class="panel">
         <div class="actions">
           <button id="saveBottom">Save settings</button>
           <button id="resetSamples" type="button" class="secondary">Reset sample tables</button>

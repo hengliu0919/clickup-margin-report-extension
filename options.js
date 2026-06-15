@@ -9,8 +9,10 @@ const elements = {
   projectRows: document.querySelector("#projectRows"),
   saveStatus: document.querySelector("#saveStatus"),
   importStatus: document.querySelector("#importStatus"),
+  backupStatus: document.querySelector("#backupStatus"),
   validationSummary: document.querySelector("#validationSummary"),
   validationIssues: document.querySelector("#validationIssues"),
+  importSettingsFile: document.querySelector("#importSettingsFile"),
 };
 
 let currentSettings = await loadSettings();
@@ -22,6 +24,9 @@ document.querySelector("#resetSamples").addEventListener("click", resetSamples);
 document.querySelector("#addPerson").addEventListener("click", addPerson);
 document.querySelector("#addProject").addEventListener("click", addProject);
 document.querySelector("#importFromClickUp").addEventListener("click", importFromClickUp);
+document.querySelector("#exportSettings").addEventListener("click", exportSettings);
+document.querySelector("#importSettings").addEventListener("click", () => elements.importSettingsFile.click());
+elements.importSettingsFile.addEventListener("change", importSettings);
 elements.peopleRows.addEventListener("input", handleTableInput);
 elements.peopleRows.addEventListener("change", handleTableInput);
 elements.peopleRows.addEventListener("click", handleTableClick);
@@ -115,6 +120,45 @@ async function resetSamples() {
   renderSettings(currentSettings);
   elements.saveStatus.className = "status success";
   elements.saveStatus.textContent = "Sample tables restored.";
+}
+
+async function exportSettings() {
+  const settings = await saveSettings(collectSettings());
+  currentSettings = settings;
+  renderSettings(currentSettings);
+
+  const exportedAt = new Date().toISOString();
+  const payload = {
+    app: "clickup-margin-report",
+    schemaVersion: 1,
+    exportedAt,
+    storage: "browser-local",
+    settings,
+  };
+  const stamp = exportedAt.slice(0, 10);
+  downloadJson(`clickup-margin-report-settings-${stamp}.json`, payload);
+  setBackupStatus("Exported local settings backup.", "success");
+}
+
+async function importSettings(event) {
+  const [file] = event.target.files || [];
+  if (!file) return;
+
+  try {
+    setBackupStatus("Importing settings...");
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+    if (!parsed || typeof parsed !== "object") throw new Error("JSON must contain settings.");
+    const importedSettings = parsed.settings || parsed;
+    if (!importedSettings || typeof importedSettings !== "object") throw new Error("Backup is missing settings.");
+    currentSettings = await saveSettings(importedSettings);
+    renderSettings(currentSettings);
+    setBackupStatus(`Imported ${currentSettings.peopleRates.length} people rows and ${currentSettings.projectRates.length} project rows.`, "success");
+  } catch (error) {
+    setBackupStatus(`Import failed: ${error.message}`, "error");
+  } finally {
+    event.target.value = "";
+  }
 }
 
 function addPerson() {
@@ -361,6 +405,23 @@ function isMissingReceiverError(error) {
 function setImportStatus(message, type = "") {
   elements.importStatus.className = type ? `status ${type}` : "status";
   elements.importStatus.textContent = message;
+}
+
+function setBackupStatus(message, type = "") {
+  elements.backupStatus.className = type ? `status ${type}` : "status";
+  elements.backupStatus.textContent = message;
+}
+
+function downloadJson(filename, payload) {
+  const blob = new Blob([`${JSON.stringify(payload, null, 2)}\n`], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 function escapeHtml(value) {

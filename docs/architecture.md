@@ -11,7 +11,7 @@ This is a Manifest V3 Chrome extension with no build step.
 - `page-bridge.js`: runs in the ClickUp page context, reuses the logged-in session, and calls ClickUp internal APIs.
 - `src/margin.js`: pure margin calculation.
 - `src/csv.js`: CSV parsing/export helpers.
-- `src/storage.js`: Chrome storage wrapper with localStorage fallback for browser preview.
+- `src/storage.js`: browser-local storage wrapper using Chrome extension storage with localStorage fallback for browser preview.
 
 ## Data Flow
 
@@ -22,6 +22,8 @@ flowchart LR
   C --> D["Timesheet Aggregates"]
   E["Editable People Rates"] --> F["Extension Popup"]
   G["Editable Project Rates"] --> F
+  J["JSON Settings Backup"] --> E
+  E --> J
   D --> F
   F --> H["Margin Summary"]
   F --> I["Invoice/Margin CSV Export"]
@@ -29,7 +31,7 @@ flowchart LR
 
 ## Rate Tables
 
-The options page maintains structured tables in Chrome extension storage. Legacy CSV storage is still parsed so older test data and early installs can migrate forward.
+The options page maintains structured tables in browser-local extension storage. Legacy CSV storage is still parsed so older test data and early installs can migrate forward. Users can export/import the normalized settings as JSON.
 
 People rates are keyed by imported ClickUp user ID:
 
@@ -90,6 +92,12 @@ The prototype stores editable rate tables in extension storage so the report can
 - optional tab `TimeEntriesCache`
 
 That keeps private rates in the user's Google account and avoids backend storage in v1.
+
+## ClickUp Custom Fields Direction
+
+ClickUp custom fields are research-only for now. Normal custom fields were readable by non-admin users in testing, and private custom fields require a paid plan in the tested workspace.
+
+The captured internal API notes are in `docs/clickup-custom-fields-backend-research.md`.
 
 ## Public API Fallback
 

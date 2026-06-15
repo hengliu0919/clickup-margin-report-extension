@@ -7,7 +7,8 @@ This is the first runnable Chrome extension prototype. It is intentionally small
 - reuses the active ClickUp browser session;
 - detects the selected workspace from the active `app.clickup.com` tab;
 - imports ClickUp users and project Lists into editable local rate tables;
-- stores people/project rates in Chrome extension storage;
+- stores people/project rates in browser-local extension storage;
+- supports JSON import/export backups for local settings;
 - reads ClickUp workspace members and timesheet aggregates;
 - calculates revenue, delivery cost, gross profit, margin, and budget burn;
 - exports entry-level margin CSV.
@@ -36,7 +37,9 @@ The options page lets you maintain:
 - project rates keyed by imported ClickUp List ID;
 - validation warnings for missing rates, duplicate rows, and manually added rows that are not connected to ClickUp.
 
-Fields marked `ClickUp` are read-only references synced from the active workspace. Fields marked `Local` or rendered as normal inputs are private margin settings owned by the extension user.
+Fields marked `ClickUp` are read-only references synced from the active workspace. Fields marked `Local` or rendered as normal inputs are private margin settings owned by the extension user and stored locally in the browser profile.
+
+Use **Local Backup** to export or import a JSON backup of all settings.
 
 After the rate tables are valid enough, open the extension popup from a ClickUp workspace tab and run the report.
 
@@ -77,6 +80,14 @@ margin = gross_profit / revenue
 - Maps projects by ClickUp List ID only.
 - Uses timesheet task aggregates, not raw individual time-entry descriptions.
 - Does not write anything back to ClickUp.
+
+## Future ClickUp Backend Research
+
+ClickUp custom fields are not the backend for this MVP. Normal custom fields were visible to non-admin users in testing, and private custom field creation failed on the current workspace with a paid-plan upgrade error.
+
+Research notes are saved in:
+
+- `docs/clickup-custom-fields-backend-research.md`
 
 ## Next Build Step
 
