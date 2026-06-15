@@ -298,17 +298,42 @@ async function getClickUpTab() {
 }
 
 async function sendToClickUpTab(tabId, type, payload = {}) {
-  const response = await chrome.tabs.sendMessage(tabId, {
+  const message = {
     target: "clickup-margin-report-content",
     type,
     payload,
-  });
+  };
+
+  let response;
+  try {
+    response = await chrome.tabs.sendMessage(tabId, message);
+  } catch (error) {
+    if (!isMissingReceiverError(error)) throw error;
+    setImportStatus("Connecting to the ClickUp tab...");
+    await injectContentScript(tabId);
+    response = await chrome.tabs.sendMessage(tabId, message);
+  }
 
   if (!response?.ok) {
     throw new Error(response?.error || "Could not read data from the ClickUp tab. Reload ClickUp after installing the extension.");
   }
 
   return response.result;
+}
+
+async function injectContentScript(tabId) {
+  if (!chrome.scripting?.executeScript) {
+    throw new Error("Reload the ClickUp tab once, then try again.");
+  }
+
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    files: ["content-script.js"],
+  });
+}
+
+function isMissingReceiverError(error) {
+  return /Receiving end does not exist|Could not establish connection/i.test(error?.message || "");
 }
 
 function setImportStatus(message, type = "") {
