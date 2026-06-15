@@ -11,12 +11,9 @@ const defaultProjectRatesCsv = `clickup_list_id,client,project,bill_rate,budget_
 `;
 
 export const defaultSettings = {
-  clickupToken: "",
-  workspaceId: "",
   lookbackDays: 14,
   peopleRatesCsv: defaultPeopleRatesCsv,
   projectRatesCsv: defaultProjectRatesCsv,
-  lastWorkspaceName: "",
 };
 
 const hasChromeStorage = () =>
@@ -51,4 +48,3 @@ export function openOptionsPage() {
 
   window.location.href = "options.html";
 }
-

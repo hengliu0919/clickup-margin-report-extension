@@ -4,9 +4,10 @@ Private margin reporting for teams that already track time in ClickUp.
 
 This is the first runnable Chrome extension prototype. It is intentionally small and local-first:
 
-- stores a ClickUp personal token in Chrome extension storage;
+- reuses the active ClickUp browser session;
+- detects the selected workspace from the active `app.clickup.com` tab;
 - stores people/project rate CSVs in Chrome extension storage;
-- reads ClickUp workspace members and time entries;
+- reads ClickUp workspace members and timesheet aggregates;
 - calculates revenue, delivery cost, gross profit, margin, and budget burn;
 - exports entry-level margin CSV.
 
@@ -25,10 +26,10 @@ The product direction is still privacy-first Google OAuth + user-owned Google Sh
 
 ## Configure
 
-Open the extension options page and set:
+Open a ClickUp workspace tab, then open the extension popup and run the report.
 
-- ClickUp personal token;
-- Workspace ID;
+The options page only needs:
+
 - lookback days;
 - people rates CSV;
 - project rates CSV.
@@ -76,10 +77,10 @@ margin = gross_profit / revenue
 
 ## Current Limitations
 
-- Uses a personal token for now, not ClickUp OAuth.
+- Uses ClickUp internal web APIs discovered from the logged-in app. This is a great UX but can break if ClickUp changes frontend endpoints.
 - Stores rates locally in extension storage for now, not Google Sheets.
 - Maps projects by ClickUp List ID only.
-- Hydrates tasks one-by-one; fine for a prototype, but should be cached/batched more carefully later.
+- Uses timesheet task aggregates, not raw individual time-entry descriptions.
 - Does not write anything back to ClickUp.
 
 ## Next Build Step

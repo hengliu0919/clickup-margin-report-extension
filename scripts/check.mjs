@@ -4,9 +4,10 @@ import { parseRateTables, buildMarginReport } from "../src/margin.js";
 
 const root = new URL("../", import.meta.url);
 const jsFiles = [
+  "content-script.js",
   "options.js",
+  "page-bridge.js",
   "popup.js",
-  "src/clickup.js",
   "src/csv.js",
   "src/margin.js",
   "src/storage.js",
@@ -42,4 +43,3 @@ if (report.totals.revenue !== 300 || report.totals.cost !== 110) {
 }
 
 console.log("extension checks passed");
-

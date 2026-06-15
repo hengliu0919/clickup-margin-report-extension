@@ -1,4 +1,3 @@
-import { ClickUpClient } from "./src/clickup.js";
 import { downloadCsv, toCsv } from "./src/csv.js";
 import { buildMarginReport, formatMoney, formatPercent, parseRateTables } from "./src/margin.js";
 import { loadSettings, openOptionsPage } from "./src/storage.js";
@@ -32,9 +31,11 @@ elements.runReport.addEventListener("click", runReport);
 elements.exportCsv.addEventListener("click", exportEntries);
 
 function renderInitialState() {
-  const hasMinimumSettings = Boolean(settings.clickupToken && settings.workspaceId);
-  elements.setupPanel.classList.toggle("hidden", hasMinimumSettings);
   elements.rangeLabel.textContent = `${settings.lookbackDays || 14}-day lookback`;
+  if (typeof chrome === "undefined" || !chrome.tabs) return;
+  getActiveClickUpTab().then((tab) => {
+    elements.setupPanel.classList.toggle("hidden", Boolean(tab));
+  });
 }
 
 async function runReport() {
@@ -44,29 +45,24 @@ async function runReport() {
 
   try {
     settings = await loadSettings();
-    if (!settings.clickupToken || !settings.workspaceId) {
+    const tab = await getActiveClickUpTab();
+    if (!tab) {
       elements.setupPanel.classList.remove("hidden");
-      throw new Error("Missing ClickUp token or workspace ID.");
+      throw new Error("Open a ClickUp workspace tab, then run the report again.");
     }
 
-    const client = new ClickUpClient(settings.clickupToken);
-    const { startDate, endDate } = dateRange(settings.lookbackDays);
-    const members = await client.getWorkspaceMembers(settings.workspaceId);
-    setStatus(`Loading time entries for ${members.length} members...`);
-    const { entries, errors } = await client.getAllMemberTimeEntries({
-      workspaceId: settings.workspaceId,
-      members,
-      startDate,
-      endDate,
+    setStatus("Asking the ClickUp tab for session data...");
+    const data = await sendToClickUpTab(tab.id, "GET_MARGIN_DATA", {
+      lookbackDays: settings.lookbackDays,
     });
 
-    setStatus(`Hydrating ${entries.length} entries...`);
-    const tasksById = await client.hydrateTasksForEntries(entries);
+    setStatus(`Calculating ${data.entries.length} time rows from ${data.users.length} members...`);
+    const tasksById = new Map(data.entries.map((entry) => [entry.task?.id, entry.task]).filter(([taskId]) => taskId));
     const { peopleRates, projectRates } = parseRateTables(settings);
-    latestReport = buildMarginReport({ entries, tasksById, peopleRates, projectRates });
+    latestReport = buildMarginReport({ entries: data.entries, tasksById, peopleRates, projectRates });
 
-    renderReport(latestReport, errors);
-    setStatus(`Loaded ${entries.length} time entries from ${members.length} members.`, "success");
+    renderReport(latestReport, data.errors || []);
+    setStatus(`Loaded ${data.entries.length} time rows from workspace ${data.workspaceId}.`, "success");
   } catch (error) {
     setStatus(error.message, "error");
   } finally {
@@ -108,7 +104,7 @@ function renderWarnings(report, apiErrors) {
     ...report.missing.peopleRates.map((item) => `Missing people rate: ${item.label} (${item.id})`),
     ...report.missing.projectRates.map((item) => `Missing project mapping/rate: ${item.label} (${item.id})`),
     ...report.missing.taskLocation.map((item) => `Missing task location: ${item.label} (${item.id})`),
-    ...apiErrors.map((item) => `Could not fetch assignee ${item.assigneeId}: ${item.error.message}`),
+    ...apiErrors.map((item) => `Could not fetch assignee ${item.assigneeId}: ${item.message || item.error?.message || "Unknown error"}`),
   ];
 
   elements.warningsPanel.classList.toggle("hidden", warningRows.length === 0);
@@ -126,14 +122,6 @@ function setStatus(message, type = "") {
   elements.status.textContent = message;
 }
 
-function dateRange(lookbackDays) {
-  const endDate = new Date();
-  const startDate = new Date();
-  startDate.setDate(endDate.getDate() - Number(lookbackDays || 14));
-  startDate.setHours(0, 0, 0, 0);
-  return { startDate, endDate };
-}
-
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -143,3 +131,22 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+async function getActiveClickUpTab() {
+  if (typeof chrome === "undefined" || !chrome.tabs) return null;
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  return tab?.url?.startsWith("https://app.clickup.com/") ? tab : null;
+}
+
+async function sendToClickUpTab(tabId, type, payload = {}) {
+  const response = await chrome.tabs.sendMessage(tabId, {
+    target: "clickup-margin-report-content",
+    type,
+    payload,
+  });
+
+  if (!response?.ok) {
+    throw new Error(response?.error || "Could not read data from the ClickUp tab. Reload ClickUp after installing the extension.");
+  }
+
+  return response.result;
+}

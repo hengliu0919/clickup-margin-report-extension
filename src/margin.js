@@ -1,5 +1,4 @@
 import { parseCsv } from "./csv.js";
-import { getEntryTaskId } from "./clickup.js";
 
 export function parseRateTables({ peopleRatesCsv, projectRatesCsv }) {
   const peopleRows = parseCsv(peopleRatesCsv);
@@ -161,6 +160,10 @@ function normalizeUser(entry) {
   };
 }
 
+function getEntryTaskId(entry) {
+  return entry.task?.id || entry.task_id || entry.tid || entry.taskId || "";
+}
+
 function normalizeListId(entry, task) {
   return (
     entry.task_location?.list_id ||
@@ -205,4 +208,3 @@ function addMissing(map, id, label) {
 function mapNumbers(object, mapper) {
   return Object.fromEntries(Object.entries(object).map(([key, value]) => [key, mapper(value)]));
 }
-

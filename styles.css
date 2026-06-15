@@ -131,6 +131,10 @@ p {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.settings-grid.single {
+  grid-template-columns: minmax(160px, 220px);
+}
+
 label {
   color: var(--muted);
   display: grid;
@@ -244,4 +248,3 @@ th {
     grid-template-columns: 1fr;
   }
 }
-

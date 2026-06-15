@@ -8,7 +8,19 @@
     "default_popup": "popup.html"
   },
   "options_page": "options.html",
-  "permissions": ["storage"],
-  "host_permissions": ["https://api.clickup.com/*"]
+  "permissions": ["activeTab", "storage", "tabs"],
+  "host_permissions": ["https://app.clickup.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://app.clickup.com/*"],
+      "js": ["content-script.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["page-bridge.js"],
+      "matches": ["https://app.clickup.com/*"]
+    }
+  ]
 }
-

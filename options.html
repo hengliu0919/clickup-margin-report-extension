@@ -12,32 +12,20 @@
         <div>
           <div class="eyebrow">Settings</div>
           <h1>ClickUp Margin Report</h1>
-          <p>Keep private rates in this prototype, then move them to a user-owned Google Sheet.</p>
+          <p>ClickUp data comes from your current logged-in tab. Keep private rates here for now.</p>
         </div>
         <button id="saveTop">Save</button>
       </div>
 
       <section class="panel">
-        <h2>ClickUp Connection</h2>
-        <div class="grid settings-grid">
-          <label>
-            Personal token
-            <input id="clickupToken" type="password" autocomplete="off" placeholder="pk_..." />
-          </label>
-          <label>
-            Workspace ID
-            <input id="workspaceId" type="text" placeholder="9014..." />
-          </label>
+        <h2>Report Window</h2>
+        <div class="grid settings-grid single">
           <label>
             Lookback days
             <input id="lookbackDays" type="number" min="1" max="120" />
           </label>
         </div>
-        <div class="actions">
-          <button id="loadWorkspaces" type="button" class="secondary">Load workspaces</button>
-          <button id="loadMembers" type="button" class="secondary">Preview members</button>
-        </div>
-        <div id="connectionStatus" class="status"></div>
+        <p>The extension detects the workspace from the active `app.clickup.com` URL and reuses the existing ClickUp browser session.</p>
       </section>
 
       <section class="panel">
@@ -64,4 +52,3 @@
     <script type="module" src="options.js"></script>
   </body>
 </html>
-

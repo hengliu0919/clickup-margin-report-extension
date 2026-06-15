@@ -6,8 +6,9 @@ This is a Manifest V3 Chrome extension with no build step.
 
 - `manifest.json`: extension permissions and entry points.
 - `popup.html` / `popup.js`: report generation and CSV export.
-- `options.html` / `options.js`: ClickUp token, workspace, date range, people rates, project rates.
-- `src/clickup.js`: ClickUp API client.
+- `options.html` / `options.js`: report window, people rates, project rates.
+- `content-script.js`: relays popup requests into the active ClickUp page.
+- `page-bridge.js`: runs in the ClickUp page context, reuses the logged-in session, and calls ClickUp internal APIs.
 - `src/margin.js`: pure margin calculation.
 - `src/csv.js`: CSV parsing/export helpers.
 - `src/storage.js`: Chrome storage wrapper with localStorage fallback for browser preview.
@@ -16,11 +17,14 @@ This is a Manifest V3 Chrome extension with no build step.
 
 ```mermaid
 flowchart LR
-  A["ClickUp Time Entries"] --> B["Extension Popup"]
-  C["People Rates CSV"] --> B
-  D["Project Rates CSV"] --> B
-  B --> E["Margin Summary"]
-  B --> F["Invoice/Margin CSV Export"]
+  A["Active ClickUp Tab"] --> B["Page Bridge"]
+  B --> C["ClickUp Internal APIs"]
+  C --> D["Timesheet Aggregates"]
+  E["People Rates CSV"] --> F["Extension Popup"]
+  G["Project Rates CSV"] --> F
+  D --> F
+  F --> H["Margin Summary"]
+  F --> I["Invoice/Margin CSV Export"]
 ```
 
 ## Rate Tables
@@ -41,6 +45,33 @@ clickup_list_id,client,project,bill_rate,budget_hours,target_margin
 901417274458,Acme Co,Website Redesign,150,80,0.55
 ```
 
+## Session Reuse
+
+The prototype no longer asks for a ClickUp personal token or workspace ID.
+
+1. Popup checks the active tab is `https://app.clickup.com/...`.
+2. Content script injects `page-bridge.js`.
+3. Page bridge detects workspace ID from the URL.
+4. Page bridge calls:
+   - `POST https://id.app.clickup.com/data/v3/workspaces/{workspace_id}/authentication/access_tokens`
+   - then `frontdoor-prod-us-east-2-2.clickup.com` APIs with the returned bearer token.
+5. The token stays in page memory and is not stored by the extension.
+
+## Internal APIs Observed
+
+- Workspace token exchange:
+  - `POST /data/v3/workspaces/{workspace_id}/authentication/access_tokens?trigger_source=...`
+- Workspace users:
+  - `GET /v3-user/experience/{workspace_id}/users?includeWorkspaceUserProfile=true`
+- Timesheet task aggregates:
+  - `GET /time-hub-service-v1/workspace/{workspace_id}/timesheet/tasks?team_id={workspace_id}&page_count=100&start_of_week={ms}&timezone=viewer&week_start_day=viewer&as_user={user_id}`
+- Current timer:
+  - `GET /scheduling/v1/team/{workspace_id}/time_entries/current`
+- Time entry tags:
+  - `GET /scheduling/v1/team/{workspace_id}/time_entries/tags`
+
+The margin MVP uses the timesheet task aggregate endpoint. It loops workspace users with `as_user`, then converts per-day billable/non-billable milliseconds into report rows.
+
 ## Google Sheets Direction
 
 The prototype stores CSV tables in extension storage so the report can run today. The intended v1 product should use proper Google OAuth and a user-owned Google Sheet:
@@ -52,10 +83,6 @@ The prototype stores CSV tables in extension storage so the report can run today
 
 That keeps private rates in the user's Google account and avoids backend storage in v1.
 
-## ClickUp API Notes
+## Public API Fallback
 
-- `GET /api/v2/team` lists authorized workspaces.
-- `GET /api/v2/team/{team_id}/time_entries` returns time entries.
-- To fetch another user's time entries, include `assignee={clickup_user_id}`.
-- Hydrate tasks with `GET /api/v2/task/{task_id}` when the time-entry payload does not include list/project location.
-
+The public API client still exists as a fallback/reference, but the preferred UX is session reuse from an active ClickUp tab.

@@ -18,16 +18,16 @@
       </div>
 
       <section id="setupPanel" class="panel hidden">
-        <h2>Setup needed</h2>
-        <p>Add your ClickUp token, workspace ID, and rate CSVs before running a report.</p>
+        <h2>Open ClickUp</h2>
+        <p>Run this from an active ClickUp workspace tab. No personal token needed.</p>
         <div class="actions">
-          <button id="setupButton" type="button">Open settings</button>
+          <button id="setupButton" type="button">Edit rates</button>
         </div>
       </section>
 
       <section class="panel">
         <h2>Report</h2>
-        <p id="reportHint">Fetches each workspace member's time entries for the selected lookback window.</p>
+        <p id="reportHint">Uses your current ClickUp session and selected workspace.</p>
         <div class="actions">
           <button id="runReport" type="button">Run report</button>
           <button id="exportCsv" type="button" class="secondary" disabled>Export entry CSV</button>
@@ -83,4 +83,3 @@
     <script type="module" src="popup.js"></script>
   </body>
 </html>
-
