@@ -24,6 +24,10 @@ flowchart LR
   G["Editable Project Rates"] --> F
   J["JSON Settings Backup"] --> E
   E --> J
+  K["People/Project CSV Backup"] --> E
+  E --> K
+  K --> G
+  G --> K
   D --> F
   F --> H["Margin Summary"]
   F --> I["Invoice/Margin CSV Export"]
@@ -31,7 +35,15 @@ flowchart LR
 
 ## Rate Tables
 
-The options page maintains structured tables in browser-local extension storage. Legacy CSV storage is still parsed so older test data and early installs can migrate forward. Users can export/import the normalized settings as JSON.
+The options page maintains structured tables in browser-local extension storage. Legacy CSV storage is still parsed so older test data and early installs can migrate forward.
+
+Users can export/import:
+
+- People rates CSV, replacing only the people table.
+- Project rates CSV, replacing only the project table.
+- Full settings JSON, restoring all local settings.
+
+All export filenames include `YYYY-MM-DD`.
 
 People rates are keyed by imported ClickUp user ID:
 
@@ -92,6 +104,8 @@ The prototype stores editable rate tables in extension storage so the report can
 - optional tab `TimeEntriesCache`
 
 That keeps private rates in the user's Google account and avoids backend storage in v1.
+
+The no-OAuth Sheets experiment is documented in `docs/google-sheets-no-oauth-research.md`. The short version: published CSV URLs are reasonable for read-only public/unlisted templates, but private sheet read/write without OAuth would need a logged-in `docs.google.com` content script and should stay experimental until proven stable.
 
 ## ClickUp Custom Fields Direction
 

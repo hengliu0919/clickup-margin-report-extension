@@ -1,5 +1,4 @@
-clickup_user_id,username,cost_rate,default_bill_rate,role
-216168054,Demo Admin,65,140,Project Manager
-216168243,Marco,55,135,Designer
-216168277,Alice,85,175,Senior Engineer
-
+clickup_user_id,display_name,role,cost_rate,default_bill_rate,currency,active
+216168054,Demo Admin,Project Manager,65,140,USD,true
+216168243,Marco,Designer,55,135,USD,true
+216168277,Alice,Senior Engineer,85,175,USD,true

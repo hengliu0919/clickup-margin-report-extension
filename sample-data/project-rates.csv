@@ -1,4 +1,4 @@
-clickup_list_id,client,project,bill_rate,budget_hours,target_margin
-901417274458,Acme Co,Website Redesign,150,80,0.55
-901417274459,Northstar,MSP Support Retainer,185,40,0.50
-901417274460,Helio,Mobile App Rescue,175,60,0.55
+scope_type,scope_id,scope_name,client,project,bill_rate,budget_hours,target_margin,active
+list,901417274458,Client - Acme Co Website Redesign,Acme Co,Website Redesign,150,80,0.55,true
+list,901417274459,Client - Northstar MSP Support Retainer,Northstar,MSP Support Retainer,185,40,0.50,true
+list,901417274460,Client - Helio Mobile App Rescue,Helio,Mobile App Rescue,175,60,0.55,true

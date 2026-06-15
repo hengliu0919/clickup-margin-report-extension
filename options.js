@@ -1,4 +1,27 @@
+import { downloadCsv, parseCsv, toCsv } from "./src/csv.js";
 import { defaultSettings, loadSettings, saveSettings } from "./src/storage.js";
+
+const peopleCsvHeaders = [
+  "clickup_user_id",
+  "display_name",
+  "role",
+  "cost_rate",
+  "default_bill_rate",
+  "currency",
+  "active",
+];
+
+const projectCsvHeaders = [
+  "scope_type",
+  "scope_id",
+  "scope_name",
+  "client",
+  "project",
+  "bill_rate",
+  "budget_hours",
+  "target_margin",
+  "active",
+];
 
 const fields = {
   lookbackDays: document.querySelector("#lookbackDays"),
@@ -12,6 +35,8 @@ const elements = {
   backupStatus: document.querySelector("#backupStatus"),
   validationSummary: document.querySelector("#validationSummary"),
   validationIssues: document.querySelector("#validationIssues"),
+  importPeopleCsvFile: document.querySelector("#importPeopleCsvFile"),
+  importProjectCsvFile: document.querySelector("#importProjectCsvFile"),
   importSettingsFile: document.querySelector("#importSettingsFile"),
 };
 
@@ -24,8 +49,14 @@ document.querySelector("#resetSamples").addEventListener("click", resetSamples);
 document.querySelector("#addPerson").addEventListener("click", addPerson);
 document.querySelector("#addProject").addEventListener("click", addProject);
 document.querySelector("#importFromClickUp").addEventListener("click", importFromClickUp);
+document.querySelector("#exportPeopleCsv").addEventListener("click", () => exportRateCsv("people"));
+document.querySelector("#importPeopleCsv").addEventListener("click", () => elements.importPeopleCsvFile.click());
+document.querySelector("#exportProjectCsv").addEventListener("click", () => exportRateCsv("project"));
+document.querySelector("#importProjectCsv").addEventListener("click", () => elements.importProjectCsvFile.click());
 document.querySelector("#exportSettings").addEventListener("click", exportSettings);
 document.querySelector("#importSettings").addEventListener("click", () => elements.importSettingsFile.click());
+elements.importPeopleCsvFile.addEventListener("change", (event) => importRateCsv(event, "people"));
+elements.importProjectCsvFile.addEventListener("change", (event) => importRateCsv(event, "project"));
 elements.importSettingsFile.addEventListener("change", importSettings);
 elements.peopleRows.addEventListener("input", handleTableInput);
 elements.peopleRows.addEventListener("change", handleTableInput);
@@ -122,6 +153,45 @@ async function resetSamples() {
   elements.saveStatus.textContent = "Sample tables restored.";
 }
 
+async function exportRateCsv(kind) {
+  const settings = await saveSettings(collectSettings());
+  currentSettings = settings;
+  renderSettings(currentSettings);
+
+  const isPeople = kind === "people";
+  const headers = isPeople ? peopleCsvHeaders : projectCsvHeaders;
+  const rows = isPeople ? settings.peopleRates : settings.projectRates;
+  const filename = `clickup-margin-report-${isPeople ? "people-rates" : "project-rates"}-${dateStamp()}.csv`;
+  downloadCsv(filename, `${toCsv(rowsForCsv(rows, headers))}\n`);
+  setBackupStatus(`Exported ${rows.length} ${isPeople ? "people" : "project"} rows to CSV.`, "success");
+}
+
+async function importRateCsv(event, kind) {
+  const [file] = event.target.files || [];
+  if (!file) return;
+
+  const isPeople = kind === "people";
+  const key = isPeople ? "peopleRates" : "projectRates";
+  const label = isPeople ? "people" : "project";
+
+  try {
+    setBackupStatus(`Importing ${label} CSV...`);
+    const rows = parseCsv(await file.text());
+    if (!rows.length) throw new Error("CSV has no data rows.");
+
+    currentSettings = await saveSettings({
+      ...collectSettings(),
+      [key]: rows,
+    });
+    renderSettings(currentSettings);
+    setBackupStatus(`Imported ${currentSettings[key].length} ${label} rows from CSV.`, "success");
+  } catch (error) {
+    setBackupStatus(`CSV import failed: ${error.message}`, "error");
+  } finally {
+    event.target.value = "";
+  }
+}
+
 async function exportSettings() {
   const settings = await saveSettings(collectSettings());
   currentSettings = settings;
@@ -135,8 +205,7 @@ async function exportSettings() {
     storage: "browser-local",
     settings,
   };
-  const stamp = exportedAt.slice(0, 10);
-  downloadJson(`clickup-margin-report-settings-${stamp}.json`, payload);
+  downloadJson(`clickup-margin-report-settings-${dateStamp(exportedAt)}.json`, payload);
   setBackupStatus("Exported local settings backup.", "success");
 }
 
@@ -410,6 +479,16 @@ function setImportStatus(message, type = "") {
 function setBackupStatus(message, type = "") {
   elements.backupStatus.className = type ? `status ${type}` : "status";
   elements.backupStatus.textContent = message;
+}
+
+function rowsForCsv(rows, headers) {
+  return rows.map((row) =>
+    Object.fromEntries(headers.map((header) => [header, row[header] ?? ""]))
+  );
+}
+
+function dateStamp(date = new Date()) {
+  return (typeof date === "string" ? date : date.toISOString()).slice(0, 10);
 }
 
 function downloadJson(filename, payload) {

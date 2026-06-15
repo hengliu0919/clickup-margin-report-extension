@@ -123,7 +123,7 @@ function normalizePeopleRates(rows, legacyCsv) {
     cost_rate: string(row.cost_rate),
     default_bill_rate: string(row.default_bill_rate),
     currency: string(row.currency || "USD"),
-    active: row.active !== false && row.active !== "false",
+    active: isActive(row.active),
   }));
 }
 
@@ -138,7 +138,7 @@ function normalizeProjectRates(rows, legacyCsv) {
     bill_rate: string(row.bill_rate),
     budget_hours: string(row.budget_hours),
     target_margin: string(row.target_margin),
-    active: row.active !== false && row.active !== "false",
+    active: isActive(row.active),
   }));
 }
 
@@ -170,4 +170,10 @@ function projectRowsFromCsv(csv = "") {
 
 function string(value) {
   return value == null ? "" : String(value);
+}
+
+function isActive(value) {
+  if (value === false) return false;
+  const normalized = string(value).trim().toLowerCase();
+  return !["false", "0", "no", "inactive", "off"].includes(normalized);
 }

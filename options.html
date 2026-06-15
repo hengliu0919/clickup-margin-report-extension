@@ -97,10 +97,16 @@
 
       <section class="panel">
         <h2>Local Backup</h2>
-        <p>Rates are stored in this browser profile. Export a JSON backup before switching machines or Chrome profiles.</p>
+        <p>Rates are stored in this browser profile. Use CSV for editing one table, or JSON for a full restore before switching machines or Chrome profiles.</p>
         <div class="actions">
+          <button id="exportPeopleCsv" type="button" class="secondary">Export people CSV</button>
+          <button id="importPeopleCsv" type="button" class="secondary">Import people CSV</button>
+          <button id="exportProjectCsv" type="button" class="secondary">Export project CSV</button>
+          <button id="importProjectCsv" type="button" class="secondary">Import project CSV</button>
           <button id="exportSettings" type="button" class="secondary">Export settings</button>
           <button id="importSettings" type="button" class="secondary">Import settings</button>
+          <input id="importPeopleCsvFile" class="hidden" type="file" accept="text/csv,.csv" />
+          <input id="importProjectCsvFile" class="hidden" type="file" accept="text/csv,.csv" />
           <input id="importSettingsFile" class="hidden" type="file" accept="application/json,.json" />
         </div>
         <div id="backupStatus" class="status"></div>
