@@ -1,17 +1,17 @@
 import { parseCsv } from "./csv.js";
 
-export function parseRateTables({ peopleRatesCsv, projectRatesCsv }) {
-  const peopleRows = parseCsv(peopleRatesCsv);
-  const projectRows = parseCsv(projectRatesCsv);
+export function parseRateTables(settings) {
+  const peopleRows = Array.isArray(settings.peopleRates) ? settings.peopleRates : parseCsv(settings.peopleRatesCsv || "");
+  const projectRows = Array.isArray(settings.projectRates) ? settings.projectRates : parseCsv(settings.projectRatesCsv || "");
 
   const peopleRates = new Map(
     peopleRows
-      .filter((row) => row.clickup_user_id)
+      .filter((row) => row.active !== false && row.active !== "false" && row.clickup_user_id)
       .map((row) => [
         String(row.clickup_user_id),
         {
           userId: String(row.clickup_user_id),
-          username: row.username || "Unknown user",
+          username: row.display_name || row.username || "Unknown user",
           costRate: number(row.cost_rate),
           defaultBillRate: number(row.default_bill_rate),
           role: row.role || "",
@@ -21,11 +21,13 @@ export function parseRateTables({ peopleRatesCsv, projectRatesCsv }) {
 
   const projectRates = new Map(
     projectRows
-      .filter((row) => row.clickup_list_id)
+      .filter((row) => row.active !== false && row.active !== "false" && (row.scope_id || row.clickup_list_id))
       .map((row) => [
-        String(row.clickup_list_id),
+        String(row.scope_id || row.clickup_list_id),
         {
-          listId: String(row.clickup_list_id),
+          listId: String(row.scope_id || row.clickup_list_id),
+          scopeType: row.scope_type || "list",
+          scopeName: row.scope_name || "",
           client: row.client || "Unmapped client",
           project: row.project || "Unmapped project",
           billRate: number(row.bill_rate),

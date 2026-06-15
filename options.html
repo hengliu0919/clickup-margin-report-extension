@@ -25,25 +25,76 @@
             <input id="lookbackDays" type="number" min="1" max="120" />
           </label>
         </div>
-        <p>The extension detects the workspace from the active `app.clickup.com` URL and reuses the existing ClickUp browser session.</p>
+        <p>The extension detects the workspace from the active <code>app.clickup.com</code> tab and reuses the existing ClickUp browser session.</p>
+        <div class="actions">
+          <button id="importFromClickUp" type="button" class="secondary">Import users and projects from ClickUp</button>
+        </div>
+        <div id="importStatus" class="status"></div>
       </section>
 
       <section class="panel">
-        <h2>People Rates CSV</h2>
-        <p>Key this by ClickUp user ID. Cost rates should stay private.</p>
-        <textarea id="peopleRatesCsv" spellcheck="false"></textarea>
+        <div class="section-heading">
+          <div>
+            <h2>People Rates</h2>
+            <p>Import people from ClickUp, then fill cost and default bill rates. Rates stay private in this browser profile.</p>
+          </div>
+          <button id="addPerson" type="button" class="secondary">Add person</button>
+        </div>
+        <div class="editable-table-wrap">
+          <table class="editable-table">
+            <thead>
+              <tr>
+                <th>Active</th>
+                <th>Person</th>
+                <th>Role</th>
+                <th>Cost/hr</th>
+                <th>Default bill/hr</th>
+                <th>Currency</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="peopleRows"></tbody>
+          </table>
+        </div>
       </section>
 
       <section class="panel">
-        <h2>Project Rates CSV</h2>
-        <p>Key this by ClickUp List ID for the first prototype.</p>
-        <textarea id="projectRatesCsv" spellcheck="false"></textarea>
+        <div class="section-heading">
+          <div>
+            <h2>Project Rates</h2>
+            <p>Import ClickUp Lists with tracked time, then fill client, project, bill rate, budget, and target margin.</p>
+          </div>
+          <button id="addProject" type="button" class="secondary">Add project</button>
+        </div>
+        <div class="editable-table-wrap">
+          <table class="editable-table">
+            <thead>
+              <tr>
+                <th>Active</th>
+                <th>ClickUp location</th>
+                <th>Client</th>
+                <th>Project</th>
+                <th>Bill/hr</th>
+                <th>Budget hrs</th>
+                <th>Target margin</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="projectRows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Validation</h2>
+        <div id="validationSummary" class="validation-summary"></div>
+        <ul id="validationIssues" class="warning-list"></ul>
       </section>
 
       <section class="panel">
         <div class="actions">
           <button id="saveBottom">Save settings</button>
-          <button id="resetSamples" type="button" class="secondary">Reset sample CSVs</button>
+          <button id="resetSamples" type="button" class="secondary">Reset sample tables</button>
         </div>
         <div id="saveStatus" class="status"></div>
       </section>

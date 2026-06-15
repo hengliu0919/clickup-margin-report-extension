@@ -1,36 +1,93 @@
-const defaultPeopleRatesCsv = `clickup_user_id,username,cost_rate,default_bill_rate,role
-216168054,Demo Admin,65,140,Project Manager
-216168243,Marco,55,135,Designer
-216168277,Alice,85,175,Senior Engineer
-`;
+import { parseCsv } from "./csv.js";
 
-const defaultProjectRatesCsv = `clickup_list_id,client,project,bill_rate,budget_hours,target_margin
-901417274458,Acme Co,Website Redesign,150,80,0.55
-901417274459,Northstar,MSP Support Retainer,185,40,0.50
-901417274460,Helio,Mobile App Rescue,175,60,0.55
-`;
+const defaultPeopleRates = [
+  {
+    clickup_user_id: "216168054",
+    display_name: "Demo Admin",
+    role: "Project Manager",
+    cost_rate: "65",
+    default_bill_rate: "140",
+    currency: "USD",
+    active: true,
+  },
+  {
+    clickup_user_id: "216168243",
+    display_name: "Marco",
+    role: "Designer",
+    cost_rate: "55",
+    default_bill_rate: "135",
+    currency: "USD",
+    active: true,
+  },
+  {
+    clickup_user_id: "216168277",
+    display_name: "Alice",
+    role: "Senior Engineer",
+    cost_rate: "85",
+    default_bill_rate: "175",
+    currency: "USD",
+    active: true,
+  },
+];
+
+const defaultProjectRates = [
+  {
+    scope_type: "list",
+    scope_id: "901417274458",
+    scope_name: "Client - Acme Co Website Redesign",
+    client: "Acme Co",
+    project: "Website Redesign",
+    bill_rate: "150",
+    budget_hours: "80",
+    target_margin: "0.55",
+    active: true,
+  },
+  {
+    scope_type: "list",
+    scope_id: "901417274459",
+    scope_name: "Client - Northstar MSP Support Retainer",
+    client: "Northstar",
+    project: "MSP Support Retainer",
+    bill_rate: "185",
+    budget_hours: "40",
+    target_margin: "0.50",
+    active: true,
+  },
+  {
+    scope_type: "list",
+    scope_id: "901417274460",
+    scope_name: "Client - Helio Mobile App Rescue",
+    client: "Helio",
+    project: "Mobile App Rescue",
+    bill_rate: "175",
+    budget_hours: "60",
+    target_margin: "0.55",
+    active: true,
+  },
+];
 
 export const defaultSettings = {
   lookbackDays: 14,
-  peopleRatesCsv: defaultPeopleRatesCsv,
-  projectRatesCsv: defaultProjectRatesCsv,
+  peopleRates: defaultPeopleRates,
+  projectRates: defaultProjectRates,
 };
 
 const hasChromeStorage = () =>
   typeof chrome !== "undefined" && chrome.storage && chrome.storage.local;
 
 export async function loadSettings() {
+  const storageKeys = [...Object.keys(defaultSettings), "peopleRatesCsv", "projectRatesCsv"];
   if (hasChromeStorage()) {
-    const stored = await chrome.storage.local.get(Object.keys(defaultSettings));
-    return { ...defaultSettings, ...stored };
+    const stored = await chrome.storage.local.get(storageKeys);
+    return normalizeSettings({ ...defaultSettings, ...stored });
   }
 
   const raw = localStorage.getItem("clickupMarginReportSettings");
-  return raw ? { ...defaultSettings, ...JSON.parse(raw) } : { ...defaultSettings };
+  return raw ? normalizeSettings({ ...defaultSettings, ...JSON.parse(raw) }) : normalizeSettings({ ...defaultSettings });
 }
 
 export async function saveSettings(settings) {
-  const next = { ...defaultSettings, ...settings };
+  const next = normalizeSettings({ ...defaultSettings, ...settings });
   if (hasChromeStorage()) {
     await chrome.storage.local.set(next);
     return next;
@@ -47,4 +104,70 @@ export function openOptionsPage() {
   }
 
   window.location.href = "options.html";
+}
+
+function normalizeSettings(settings) {
+  return {
+    lookbackDays: Math.max(1, Number(settings.lookbackDays || defaultSettings.lookbackDays)),
+    peopleRates: normalizePeopleRates(settings.peopleRates, settings.peopleRatesCsv),
+    projectRates: normalizeProjectRates(settings.projectRates, settings.projectRatesCsv),
+  };
+}
+
+function normalizePeopleRates(rows, legacyCsv) {
+  const sourceRows = Array.isArray(rows) && rows.length ? rows : peopleRowsFromCsv(legacyCsv);
+  return (sourceRows.length ? sourceRows : defaultPeopleRates).map((row) => ({
+    clickup_user_id: string(row.clickup_user_id),
+    display_name: string(row.display_name || row.username),
+    role: string(row.role),
+    cost_rate: string(row.cost_rate),
+    default_bill_rate: string(row.default_bill_rate),
+    currency: string(row.currency || "USD"),
+    active: row.active !== false && row.active !== "false",
+  }));
+}
+
+function normalizeProjectRates(rows, legacyCsv) {
+  const sourceRows = Array.isArray(rows) && rows.length ? rows : projectRowsFromCsv(legacyCsv);
+  return (sourceRows.length ? sourceRows : defaultProjectRates).map((row) => ({
+    scope_type: string(row.scope_type || "list"),
+    scope_id: string(row.scope_id || row.clickup_list_id),
+    scope_name: string(row.scope_name),
+    client: string(row.client),
+    project: string(row.project),
+    bill_rate: string(row.bill_rate),
+    budget_hours: string(row.budget_hours),
+    target_margin: string(row.target_margin),
+    active: row.active !== false && row.active !== "false",
+  }));
+}
+
+function peopleRowsFromCsv(csv = "") {
+  return parseCsv(csv).map((row) => ({
+    clickup_user_id: row.clickup_user_id,
+    display_name: row.display_name || row.username,
+    role: row.role,
+    cost_rate: row.cost_rate,
+    default_bill_rate: row.default_bill_rate,
+    currency: row.currency || "USD",
+    active: true,
+  }));
+}
+
+function projectRowsFromCsv(csv = "") {
+  return parseCsv(csv).map((row) => ({
+    scope_type: "list",
+    scope_id: row.scope_id || row.clickup_list_id,
+    scope_name: row.scope_name,
+    client: row.client,
+    project: row.project,
+    bill_rate: row.bill_rate,
+    budget_hours: row.budget_hours,
+    target_margin: row.target_margin,
+    active: true,
+  }));
+}
+
+function string(value) {
+  return value == null ? "" : String(value);
 }

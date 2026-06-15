@@ -6,7 +6,8 @@ This is the first runnable Chrome extension prototype. It is intentionally small
 
 - reuses the active ClickUp browser session;
 - detects the selected workspace from the active `app.clickup.com` tab;
-- stores people/project rate CSVs in Chrome extension storage;
+- imports ClickUp users and project Lists into editable local rate tables;
+- stores people/project rates in Chrome extension storage;
 - reads ClickUp workspace members and timesheet aggregates;
 - calculates revenue, delivery cost, gross profit, margin, and budget burn;
 - exports entry-level margin CSV.
@@ -26,18 +27,16 @@ The product direction is still privacy-first Google OAuth + user-owned Google Sh
 
 ## Configure
 
-Open a ClickUp workspace tab, then open the extension popup and run the report.
+Open a ClickUp workspace tab, then open the options page and click **Import users and projects from ClickUp**.
 
-The options page only needs:
+The options page lets you maintain:
 
 - lookback days;
-- people rates CSV;
-- project rates CSV.
+- people rates keyed by imported ClickUp user ID;
+- project rates keyed by imported ClickUp List ID;
+- validation warnings for missing rates, duplicate rows, and manually added rows that are not connected to ClickUp.
 
-Sample CSVs are included in:
-
-- `sample-data/people-rates.csv`
-- `sample-data/project-rates.csv`
+After the rate tables are valid enough, open the extension popup from a ClickUp workspace tab and run the report.
 
 ## Check
 
@@ -45,21 +44,15 @@ Sample CSVs are included in:
 npm run check
 ```
 
-## People Rates CSV
+## People Rates
 
-```csv
-clickup_user_id,username,cost_rate,default_bill_rate,role
-216168054,Demo Admin,65,140,Project Manager
-216168243,Marco,55,135,Designer
-216168277,Alice,85,175,Senior Engineer
-```
+People rows are imported from ClickUp workspace members. The user edits role, cost rate, default bill rate, currency, and whether the person is active in reports.
 
-## Project Rates CSV
+## Project Rates
 
-```csv
-clickup_list_id,client,project,bill_rate,budget_hours,target_margin
-901417274458,Acme Co,Website Redesign,150,80,0.55
-```
+Project rows are imported from ClickUp Lists that have tracked time in the report window. The user edits client, project, bill rate, budget hours, target margin, and whether the project is active in reports.
+
+Legacy CSV samples are still kept in `sample-data/` for smoke tests and migration checks.
 
 ## Report Logic
 
@@ -78,7 +71,7 @@ margin = gross_profit / revenue
 ## Current Limitations
 
 - Uses ClickUp internal web APIs discovered from the logged-in app. This is a great UX but can break if ClickUp changes frontend endpoints.
-- Stores rates locally in extension storage for now, not Google Sheets.
+- Stores rates locally in extension storage for now, not Google Sheets or ClickUp.
 - Maps projects by ClickUp List ID only.
 - Uses timesheet task aggregates, not raw individual time-entry descriptions.
 - Does not write anything back to ClickUp.

@@ -60,13 +60,21 @@ button:disabled {
   opacity: 0.55;
 }
 
+code {
+  background: #eef0f7;
+  border-radius: 5px;
+  color: var(--text);
+  font-size: 0.94em;
+  padding: 1px 5px;
+}
+
 .app {
   padding: 16px;
 }
 
 .options-app {
   margin: 0 auto;
-  max-width: 980px;
+  max-width: 1180px;
   padding: 28px 18px 48px;
 }
 
@@ -122,6 +130,18 @@ p {
   margin-top: 12px;
 }
 
+.section-heading {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.section-heading h2 {
+  margin-bottom: 4px;
+}
+
 .grid {
   display: grid;
   gap: 10px;
@@ -157,6 +177,13 @@ select {
 textarea {
   min-height: 150px;
   resize: vertical;
+}
+
+input[type="checkbox"] {
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  width: 16px;
 }
 
 .status {
@@ -201,6 +228,13 @@ textarea {
   overflow: auto;
 }
 
+.editable-table-wrap {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  max-height: 360px;
+  overflow: auto;
+}
+
 table {
   border-collapse: collapse;
   width: 100%;
@@ -220,6 +254,86 @@ th {
   font-size: 12px;
   position: sticky;
   top: 0;
+  z-index: 1;
+}
+
+.editable-table th:first-child,
+.editable-table td:first-child,
+.editable-table th:last-child,
+.editable-table td:last-child {
+  text-align: center;
+  width: 1%;
+}
+
+.editable-table td {
+  vertical-align: top;
+}
+
+.editable-table input:not([type="checkbox"]) {
+  border-color: transparent;
+  border-radius: 6px;
+  min-width: 92px;
+  padding: 7px 8px;
+  width: 100%;
+}
+
+.editable-table input:not([type="checkbox"]):focus {
+  background: #fbfcff;
+  border-color: var(--brand);
+  outline: none;
+}
+
+.editable-table td:nth-child(2) {
+  min-width: 210px;
+}
+
+.editable-table td:nth-child(3),
+.editable-table td:nth-child(4) {
+  min-width: 150px;
+}
+
+.subtle-id {
+  color: var(--muted);
+  display: block;
+  font-size: 11px;
+  margin-top: 3px;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.icon-button {
+  background: transparent;
+  color: var(--danger);
+  font-size: 12px;
+  padding: 7px 8px;
+}
+
+.icon-button:hover {
+  background: #fff1f0;
+  color: var(--danger);
+}
+
+.validation-summary {
+  margin-top: 8px;
+}
+
+.badge {
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 9px;
+}
+
+.badge.good {
+  background: #dcfae6;
+  color: var(--good);
+}
+
+.badge.warning {
+  background: #fef0c7;
+  color: var(--warning);
 }
 
 .empty {
@@ -246,5 +360,9 @@ th {
   .settings-grid,
   .summary {
     grid-template-columns: 1fr;
+  }
+
+  .section-heading {
+    display: grid;
   }
 }

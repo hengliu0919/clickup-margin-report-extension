@@ -20,8 +20,8 @@ flowchart LR
   A["Active ClickUp Tab"] --> B["Page Bridge"]
   B --> C["ClickUp Internal APIs"]
   C --> D["Timesheet Aggregates"]
-  E["People Rates CSV"] --> F["Extension Popup"]
-  G["Project Rates CSV"] --> F
+  E["Editable People Rates"] --> F["Extension Popup"]
+  G["Editable Project Rates"] --> F
   D --> F
   F --> H["Margin Summary"]
   F --> I["Invoice/Margin CSV Export"]
@@ -29,21 +29,29 @@ flowchart LR
 
 ## Rate Tables
 
-People rates:
+The options page maintains structured tables in Chrome extension storage. Legacy CSV storage is still parsed so older test data and early installs can migrate forward.
 
-```csv
-clickup_user_id,username,cost_rate,default_bill_rate,role
-216168054,Demo Admin,65,140,Project Manager
-216168243,Marco,55,135,Designer
-216168277,Alice,85,175,Senior Engineer
-```
+People rates are keyed by imported ClickUp user ID:
 
-Project rates:
+- `clickup_user_id`
+- `display_name`
+- `role`
+- `cost_rate`
+- `default_bill_rate`
+- `currency`
+- `active`
 
-```csv
-clickup_list_id,client,project,bill_rate,budget_hours,target_margin
-901417274458,Acme Co,Website Redesign,150,80,0.55
-```
+Project rates are keyed by imported ClickUp List ID:
+
+- `scope_type`
+- `scope_id`
+- `scope_name`
+- `client`
+- `project`
+- `bill_rate`
+- `budget_hours`
+- `target_margin`
+- `active`
 
 ## Session Reuse
 
@@ -74,7 +82,7 @@ The margin MVP uses the timesheet task aggregate endpoint. It loops workspace us
 
 ## Google Sheets Direction
 
-The prototype stores CSV tables in extension storage so the report can run today. The intended v1 product should use proper Google OAuth and a user-owned Google Sheet:
+The prototype stores editable rate tables in extension storage so the report can run today. The intended v1 product can use proper Google OAuth and a user-owned Google Sheet:
 
 - Sheet tab `PeopleRates`
 - Sheet tab `ProjectRates`
