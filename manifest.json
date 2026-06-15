@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "ClickUp Margin Report",
+  "description": "Private bill rates, cost rates, margin, and budget burn for existing ClickUp time entries.",
+  "version": "0.1.0",
+  "action": {
+    "default_title": "ClickUp Margin Report",
+    "default_popup": "popup.html"
+  },
+  "options_page": "options.html",
+  "permissions": ["storage"],
+  "host_permissions": ["https://api.clickup.com/*"]
+}
+

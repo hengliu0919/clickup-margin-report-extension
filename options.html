@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ClickUp Margin Report Settings</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="options-app">
+      <div class="topbar">
+        <div>
+          <div class="eyebrow">Settings</div>
+          <h1>ClickUp Margin Report</h1>
+          <p>Keep private rates in this prototype, then move them to a user-owned Google Sheet.</p>
+        </div>
+        <button id="saveTop">Save</button>
+      </div>
+
+      <section class="panel">
+        <h2>ClickUp Connection</h2>
+        <div class="grid settings-grid">
+          <label>
+            Personal token
+            <input id="clickupToken" type="password" autocomplete="off" placeholder="pk_..." />
+          </label>
+          <label>
+            Workspace ID
+            <input id="workspaceId" type="text" placeholder="9014..." />
+          </label>
+          <label>
+            Lookback days
+            <input id="lookbackDays" type="number" min="1" max="120" />
+          </label>
+        </div>
+        <div class="actions">
+          <button id="loadWorkspaces" type="button" class="secondary">Load workspaces</button>
+          <button id="loadMembers" type="button" class="secondary">Preview members</button>
+        </div>
+        <div id="connectionStatus" class="status"></div>
+      </section>
+
+      <section class="panel">
+        <h2>People Rates CSV</h2>
+        <p>Key this by ClickUp user ID. Cost rates should stay private.</p>
+        <textarea id="peopleRatesCsv" spellcheck="false"></textarea>
+      </section>
+
+      <section class="panel">
+        <h2>Project Rates CSV</h2>
+        <p>Key this by ClickUp List ID for the first prototype.</p>
+        <textarea id="projectRatesCsv" spellcheck="false"></textarea>
+      </section>
+
+      <section class="panel">
+        <div class="actions">
+          <button id="saveBottom">Save settings</button>
+          <button id="resetSamples" type="button" class="secondary">Reset sample CSVs</button>
+        </div>
+        <div id="saveStatus" class="status"></div>
+      </section>
+    </main>
+
+    <script type="module" src="options.js"></script>
+  </body>
+</html>
+

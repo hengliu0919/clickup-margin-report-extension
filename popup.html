@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ClickUp Margin Report</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <div class="topbar">
+        <div>
+          <div class="eyebrow">ClickUp</div>
+          <h1>Margin Report</h1>
+          <p id="rangeLabel">Existing time entries + private rates.</p>
+        </div>
+        <button id="openOptions" type="button" class="secondary">Settings</button>
+      </div>
+
+      <section id="setupPanel" class="panel hidden">
+        <h2>Setup needed</h2>
+        <p>Add your ClickUp token, workspace ID, and rate CSVs before running a report.</p>
+        <div class="actions">
+          <button id="setupButton" type="button">Open settings</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Report</h2>
+        <p id="reportHint">Fetches each workspace member's time entries for the selected lookback window.</p>
+        <div class="actions">
+          <button id="runReport" type="button">Run report</button>
+          <button id="exportCsv" type="button" class="secondary" disabled>Export entry CSV</button>
+        </div>
+        <div id="status" class="status"></div>
+      </section>
+
+      <section id="summaryPanel" class="summary hidden">
+        <div class="metric">
+          <span>Revenue</span>
+          <strong id="revenue">$0</strong>
+        </div>
+        <div class="metric">
+          <span>Cost</span>
+          <strong id="cost">$0</strong>
+        </div>
+        <div class="metric">
+          <span>Gross Profit</span>
+          <strong id="profit">$0</strong>
+        </div>
+        <div class="metric">
+          <span>Margin</span>
+          <strong id="margin">0%</strong>
+        </div>
+      </section>
+
+      <section id="warningsPanel" class="panel hidden">
+        <h2>Setup Warnings</h2>
+        <ul id="warnings" class="warning-list"></ul>
+      </section>
+
+      <section id="projectsPanel" class="panel hidden">
+        <h2>Projects</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Client</th>
+                <th>Project</th>
+                <th>Hours</th>
+                <th>Revenue</th>
+                <th>Cost</th>
+                <th>Margin</th>
+                <th>Budget</th>
+              </tr>
+            </thead>
+            <tbody id="projectRows"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>
+
