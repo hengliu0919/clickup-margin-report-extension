@@ -5,6 +5,8 @@ import { loadSettings, openOptionsPage } from "./src/storage.js";
 const elements = {
   setupPanel: document.querySelector("#setupPanel"),
   setupButton: document.querySelector("#setupButton"),
+  openClickUp: document.querySelector("#openClickUp"),
+  reportPanel: document.querySelector("#reportPanel"),
   openOptions: document.querySelector("#openOptions"),
   runReport: document.querySelector("#runReport"),
   exportCsv: document.querySelector("#exportCsv"),
@@ -26,6 +28,7 @@ let settings = await loadSettings();
 renderInitialState();
 
 elements.openOptions.addEventListener("click", openOptionsPage);
+elements.openClickUp.addEventListener("click", openClickUp);
 elements.setupButton.addEventListener("click", openOptionsPage);
 elements.runReport.addEventListener("click", runReport);
 elements.exportCsv.addEventListener("click", exportEntries);
@@ -34,12 +37,12 @@ function renderInitialState() {
   elements.rangeLabel.textContent = `${settings.lookbackDays || 14}-day lookback`;
   if (typeof chrome === "undefined" || !chrome.tabs) return;
   getActiveClickUpTab().then((tab) => {
-    elements.setupPanel.classList.toggle("hidden", Boolean(tab));
+    renderTabState(Boolean(tab));
   });
 }
 
 async function runReport() {
-  setStatus("Loading ClickUp data...");
+  clearStatus();
   elements.runReport.disabled = true;
   elements.exportCsv.disabled = true;
 
@@ -47,10 +50,13 @@ async function runReport() {
     settings = await loadSettings();
     const tab = await getActiveClickUpTab();
     if (!tab) {
-      elements.setupPanel.classList.remove("hidden");
-      throw new Error("Open a ClickUp workspace tab, then run the report again.");
+      renderTabState(false);
+      setStatus("Open an app.clickup.com workspace tab first, then open this extension again.", "info");
+      return;
     }
 
+    renderTabState(true);
+    setStatus("Loading ClickUp data...");
     setStatus("Asking the ClickUp tab for session data...");
     const data = await sendToClickUpTab(tab.id, "GET_MARGIN_DATA", {
       lookbackDays: settings.lookbackDays,
@@ -64,9 +70,11 @@ async function runReport() {
     renderReport(latestReport, data.errors || []);
     setStatus(`Loaded ${data.entries.length} time rows from workspace ${data.workspaceId}.`, "success");
   } catch (error) {
-    setStatus(error.message, "error");
+    const friendly = friendlyError(error);
+    setStatus(friendly.message, friendly.type);
   } finally {
-    elements.runReport.disabled = false;
+    const tab = await getActiveClickUpTab();
+    renderTabState(Boolean(tab));
     elements.exportCsv.disabled = !latestReport?.entries?.length;
   }
 }
@@ -122,6 +130,40 @@ function setStatus(message, type = "") {
   elements.status.textContent = message;
 }
 
+function clearStatus() {
+  setStatus("");
+}
+
+function renderTabState(isClickUpTab) {
+  elements.setupPanel.classList.toggle("hidden", isClickUpTab);
+  elements.reportPanel.classList.toggle("hidden", !isClickUpTab);
+  elements.runReport.disabled = !isClickUpTab;
+  if (!isClickUpTab) elements.exportCsv.disabled = true;
+}
+
+function openClickUp() {
+  const url = "https://app.clickup.com/";
+  if (typeof chrome !== "undefined" && chrome.tabs?.create) {
+    chrome.tabs.create({ url });
+    return;
+  }
+  window.open(url, "_blank", "noopener");
+}
+
+function friendlyError(error) {
+  const message = error?.message || "";
+  if (/Reload ClickUp|Could not read data|Could not read ClickUp/i.test(message)) {
+    return {
+      type: "warning",
+      message: "Could not read the ClickUp tab. Reload ClickUp, then run the report again.",
+    };
+  }
+  return {
+    type: "error",
+    message: message || "Something went wrong while building the report.",
+  };
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -155,7 +197,7 @@ async function sendToClickUpTab(tabId, type, payload = {}) {
   }
 
   if (!response?.ok) {
-    throw new Error(response?.error || "Could not read data from the ClickUp tab. Reload ClickUp after installing the extension.");
+    throw new Error(response?.error || "Could not read data from the ClickUp tab.");
   }
 
   return response.result;

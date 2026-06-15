@@ -23,11 +23,25 @@ JSON.parse(fs.readFileSync(new URL("manifest.json", root), "utf8"));
 const optionsHtml = fs.readFileSync(new URL("options.html", root), "utf8");
 for (const expected of [
   "Rate Book Storage",
-  "Google Sheet",
   "Advanced import/export",
+  "Refresh ClickUp users/projects",
 ]) {
   if (!optionsHtml.includes(expected)) {
     throw new Error(`Options UX is missing "${expected}"`);
+  }
+}
+if (optionsHtml.includes("Google Sheet")) {
+  throw new Error("Publish UX should not expose Google Sheet storage yet");
+}
+
+const popupHtml = fs.readFileSync(new URL("popup.html", root), "utf8");
+for (const expected of [
+  "Open ClickUp to run a report",
+  "openClickUp",
+  "Edit rates",
+]) {
+  if (!popupHtml.includes(expected)) {
+    throw new Error(`Popup UX is missing "${expected}"`);
   }
 }
 

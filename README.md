@@ -13,7 +13,7 @@ This is the first runnable Chrome extension prototype. It is intentionally small
 - calculates revenue, delivery cost, gross profit, margin, and budget burn;
 - exports entry-level margin CSV.
 
-The product direction is still privacy-first Google OAuth + user-owned Google Sheet. This prototype proves the ClickUp/time-entry/margin loop before adding Google Sheets.
+This prototype proves the ClickUp/time-entry/margin loop with local private rate storage.
 
 ## Load In Chrome
 
@@ -28,7 +28,7 @@ The product direction is still privacy-first Google OAuth + user-owned Google Sh
 
 ## Configure
 
-Open a ClickUp workspace tab, then open the options page and click **Import users and projects from ClickUp**.
+Open a ClickUp workspace tab, then open the options page and click **Refresh ClickUp users/projects**.
 
 The options page lets you maintain:
 

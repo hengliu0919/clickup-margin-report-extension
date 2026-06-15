@@ -18,14 +18,15 @@
       </div>
 
       <section id="setupPanel" class="panel hidden">
-        <h2>Open ClickUp</h2>
-        <p>Run this from an active ClickUp workspace tab. No personal token needed.</p>
+        <h2>Open ClickUp to run a report</h2>
+        <p>This extension reads your current ClickUp workspace tab. No personal token needed.</p>
         <div class="actions">
-          <button id="setupButton" type="button">Edit rates</button>
+          <button id="openClickUp" type="button">Open ClickUp</button>
+          <button id="setupButton" type="button" class="secondary">Edit rates</button>
         </div>
       </section>
 
-      <section class="panel">
+      <section id="reportPanel" class="panel">
         <h2>Report</h2>
         <p id="reportHint">Uses your current ClickUp session and selected workspace.</p>
         <div class="actions">

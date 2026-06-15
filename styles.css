@@ -165,6 +165,10 @@ p {
   margin-top: 12px;
 }
 
+.storage-options.single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .storage-option {
   align-items: flex-start;
   border: 1px solid var(--line);
@@ -300,8 +304,16 @@ input[type="checkbox"] {
   color: var(--danger);
 }
 
+.status.info {
+  color: var(--muted);
+}
+
 .status.success {
   color: var(--good);
+}
+
+.status.warning {
+  color: var(--warning);
 }
 
 .summary {

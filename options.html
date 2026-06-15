@@ -30,7 +30,7 @@
         </div>
         <p>The extension detects the workspace from the active <code>app.clickup.com</code> tab and reuses the existing ClickUp browser session.</p>
         <div class="actions">
-          <button id="importFromClickUp" type="button" class="secondary">Import users and projects from ClickUp</button>
+          <button id="importFromClickUp" type="button" class="secondary">Refresh ClickUp users/projects</button>
         </div>
         <div class="source-legend" aria-label="Field source legend">
           <span><span class="source-badge clickup">ClickUp</span> read-only reference</span>
@@ -48,21 +48,13 @@
           <span class="badge good">This browser active</span>
         </div>
 
-        <div class="storage-options" aria-label="Rate book storage options">
+        <div class="storage-options single" aria-label="Rate book storage options">
           <label class="storage-option selected">
             <input type="radio" name="storageProvider" value="local" checked />
             <span>
               <strong>This browser</strong>
               <small>Private to this Chrome profile. Fastest path for the MVP.</small>
             </span>
-          </label>
-          <label class="storage-option disabled" title="Google Sheets storage is still an experiment.">
-            <input type="radio" name="storageProvider" value="google-sheet" disabled />
-            <span>
-              <strong>Google Sheet</strong>
-              <small>Planned storage option after the session-reuse experiment.</small>
-            </span>
-            <span class="badge warning">Experiment</span>
           </label>
         </div>
 
@@ -165,7 +157,7 @@
       <section class="panel">
         <div class="actions">
           <button id="saveBottom">Save settings</button>
-          <button id="resetSamples" type="button" class="secondary">Reset sample tables</button>
+          <button id="resetSamples" type="button" class="secondary">Load demo data</button>
         </div>
         <div id="saveStatus" class="status"></div>
       </section>
