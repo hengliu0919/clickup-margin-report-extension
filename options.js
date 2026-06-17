@@ -91,7 +91,7 @@ function renderPeopleRows(rows) {
       <td><input data-field="cost_rate" value="${escapeAttr(row.cost_rate)}" inputmode="decimal" placeholder="85" /></td>
       <td><input data-field="default_bill_rate" value="${escapeAttr(row.default_bill_rate)}" inputmode="decimal" placeholder="175" /></td>
       <td><input data-field="currency" value="${escapeAttr(row.currency || "USD")}" placeholder="USD" /></td>
-      <td><button type="button" class="icon-button" data-action="remove">Remove</button></td>
+      <td><button type="button" class="btn btn-danger btn-sm" data-action="remove">Remove</button></td>
     </tr>
   `).join("");
 }
@@ -112,7 +112,7 @@ function renderProjectRows(rows) {
       <td><input data-field="bill_rate" value="${escapeAttr(row.bill_rate)}" inputmode="decimal" placeholder="150" /></td>
       <td><input data-field="budget_hours" value="${escapeAttr(row.budget_hours)}" inputmode="decimal" placeholder="80" /></td>
       <td><input data-field="target_margin" value="${escapeAttr(row.target_margin)}" inputmode="decimal" placeholder="0.55" /></td>
-      <td><button type="button" class="icon-button" data-action="remove">Remove</button></td>
+      <td><button type="button" class="btn btn-danger btn-sm" data-action="remove">Remove</button></td>
     </tr>
   `).join("");
 }
@@ -121,14 +121,14 @@ function renderSourceCell({ imported, label, field, placeholder, meta }) {
   if (!imported) {
     return `
       <input data-field="${field}" value="${escapeAttr(label)}" placeholder="${escapeAttr(placeholder)}" />
-      <span class="source-meta"><span class="source-badge local">Local</span> ${escapeHtml(meta)}</span>
+      <span class="source-meta"><span class="badge badge-info">Local</span> ${escapeHtml(meta)}</span>
     `;
   }
 
   return `
     <div class="source-readonly" title="Synced from ClickUp. Re-import to refresh this value.">
       <span class="source-label">${escapeHtml(label || "Unnamed")}</span>
-      <span class="source-meta"><span class="source-badge clickup">ClickUp</span> ${escapeHtml(meta)}</span>
+      <span class="source-meta"><span class="badge badge-brand">ClickUp</span> ${escapeHtml(meta)}</span>
     </div>
   `;
 }
@@ -142,18 +142,18 @@ function collectSettings() {
 }
 
 async function handleSave() {
-  elements.saveStatus.className = "status";
+  elements.saveStatus.className = "status-text";
   elements.saveStatus.textContent = "Saving...";
   currentSettings = await saveSettings(collectSettings());
   renderSettings(currentSettings);
-  elements.saveStatus.className = "status success";
+  elements.saveStatus.className = "status-text status-success";
   elements.saveStatus.textContent = "Saved.";
 }
 
 async function resetSamples() {
   currentSettings = await saveSettings(defaultSettings);
   renderSettings(currentSettings);
-  elements.saveStatus.className = "status success";
+  elements.saveStatus.className = "status-text status-success";
   elements.saveStatus.textContent = "Sample tables restored.";
 }
 
@@ -380,8 +380,8 @@ function handleTableClick(event) {
 function renderValidation() {
   const issues = validateSettings(currentSettings);
   const badge = issues.length
-    ? `<span class="badge warning">${issues.length} issue${issues.length === 1 ? "" : "s"} to review</span>`
-    : `<span class="badge good">Ready enough to run</span>`;
+    ? `<span class="badge badge-warning">${issues.length} issue${issues.length === 1 ? "" : "s"} to review</span>`
+    : `<span class="badge badge-success">Ready enough to run</span>`;
   elements.topValidationSummary.innerHTML = badge;
   elements.validationSummary.innerHTML = badge;
   elements.validationPanel.classList.toggle("hidden", issues.length === 0);
@@ -485,12 +485,12 @@ function isMissingReceiverError(error) {
 }
 
 function setImportStatus(message, type = "") {
-  elements.importStatus.className = type ? `status ${type}` : "status";
+  elements.importStatus.className = type ? `status-text status-${type}` : "status-text";
   elements.importStatus.textContent = message;
 }
 
 function setBackupStatus(message, type = "") {
-  elements.backupStatus.className = type ? `status ${type}` : "status";
+  elements.backupStatus.className = type ? `status-text status-${type}` : "status-text";
   elements.backupStatus.textContent = message;
 }
 

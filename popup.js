@@ -1,37 +1,27 @@
-import { downloadCsv, toCsv } from "./src/csv.js";
 import { buildMarginReport, formatMoney, formatPercent, parseRateTables } from "./src/margin.js";
 import { loadSettings, openOptionsPage } from "./src/storage.js";
 
 const elements = {
-  setupPanel: document.querySelector("#setupPanel"),
-  setupButton: document.querySelector("#setupButton"),
-  openClickUp: document.querySelector("#openClickUp"),
-  reportPanel: document.querySelector("#reportPanel"),
   openOptions: document.querySelector("#openOptions"),
   runReport: document.querySelector("#runReport"),
-  exportCsv: document.querySelector("#exportCsv"),
-  status: document.querySelector("#status"),
+  viewReport: document.querySelector("#viewReport"),
   rangeLabel: document.querySelector("#rangeLabel"),
-  summaryPanel: document.querySelector("#summaryPanel"),
-  warningsPanel: document.querySelector("#warningsPanel"),
-  warnings: document.querySelector("#warnings"),
-  projectsPanel: document.querySelector("#projectsPanel"),
-  projectRows: document.querySelector("#projectRows"),
+  notClickUpAlert: document.querySelector("#notClickUpAlert"),
+  statusDot: document.querySelector("#statusDot"),
+  statusText: document.querySelector("#statusText"),
+  quickMetrics: document.querySelector("#quickMetrics"),
+  warningBadge: document.querySelector("#warningBadge"),
+  warningCount: document.querySelector("#warningCount"),
   revenue: document.querySelector("#revenue"),
-  cost: document.querySelector("#cost"),
-  profit: document.querySelector("#profit"),
   margin: document.querySelector("#margin"),
 };
 
-let latestReport = null;
 let settings = await loadSettings();
 renderInitialState();
 
 elements.openOptions.addEventListener("click", openOptionsPage);
-elements.openClickUp.addEventListener("click", openClickUp);
-elements.setupButton.addEventListener("click", openOptionsPage);
 elements.runReport.addEventListener("click", runReport);
-elements.exportCsv.addEventListener("click", exportEntries);
+elements.viewReport.addEventListener("click", viewReport);
 
 function renderInitialState() {
   elements.rangeLabel.textContent = `${settings.lookbackDays || 14}-day lookback`;
@@ -42,112 +32,90 @@ function renderInitialState() {
 }
 
 async function runReport() {
-  clearStatus();
   elements.runReport.disabled = true;
-  elements.exportCsv.disabled = true;
+  elements.runReport.textContent = "Running...";
 
   try {
     settings = await loadSettings();
     const tab = await getActiveClickUpTab();
     if (!tab) {
-      renderTabState(false);
-      setStatus("Open an app.clickup.com workspace tab first, then open this extension again.", "info");
+      setStatus("Open ClickUp workspace", "error");
       return;
     }
 
-    renderTabState(true);
-    setStatus("Loading ClickUp data...");
-    setStatus("Asking the ClickUp tab for session data...");
+    setStatus("Loading...", "active");
     const data = await sendToClickUpTab(tab.id, "GET_MARGIN_DATA", {
       lookbackDays: settings.lookbackDays,
     });
 
-    setStatus(`Calculating ${data.entries.length} time rows from ${data.users.length} members...`);
+    setStatus("Calculating...", "active");
     const tasksById = new Map(data.entries.map((entry) => [entry.task?.id, entry.task]).filter(([taskId]) => taskId));
     const { peopleRates, projectRates } = parseRateTables(settings);
-    latestReport = buildMarginReport({ entries: data.entries, tasksById, peopleRates, projectRates });
+    const report = buildMarginReport({ entries: data.entries, tasksById, peopleRates, projectRates });
 
-    renderReport(latestReport, data.errors || []);
-    setStatus(`Loaded ${data.entries.length} time rows from workspace ${data.workspaceId}.`, "success");
+    // Store report in sessionStorage for report page
+    report.apiErrors = data.errors || [];
+    sessionStorage.setItem(
+      "clickup-margin-report-data",
+      JSON.stringify({ report, timestamp: Date.now() })
+    );
+
+    // Show quick summary
+    displayQuickSummary(report);
+    setStatus("Report ready", "success");
   } catch (error) {
     const friendly = friendlyError(error);
     setStatus(friendly.message, friendly.type);
   } finally {
     const tab = await getActiveClickUpTab();
-    renderTabState(Boolean(tab));
-    elements.exportCsv.disabled = !latestReport?.entries?.length;
+    elements.runReport.disabled = !tab;
+    elements.runReport.textContent = "Run Report";
   }
 }
 
-function renderReport(report, apiErrors) {
-  elements.summaryPanel.classList.remove("hidden");
-  elements.projectsPanel.classList.remove("hidden");
-
+function displayQuickSummary(report) {
   elements.revenue.textContent = formatMoney(report.totals.revenue);
-  elements.cost.textContent = formatMoney(report.totals.cost);
-  elements.profit.textContent = formatMoney(report.totals.grossProfit);
   elements.margin.textContent = formatPercent(report.totals.margin);
+  elements.quickMetrics.classList.remove("hidden");
+  elements.viewReport.classList.remove("hidden");
 
-  elements.projectRows.innerHTML = report.projects.length
-    ? report.projects.map(renderProjectRow).join("")
-    : `<tr><td colspan="7" class="empty">No time entries found in this range.</td></tr>`;
+  // Show warnings if any
+  const warningCount =
+    report.missing.peopleRates.length +
+    report.missing.projectRates.length +
+    report.missing.taskLocation.length +
+    (report.apiErrors?.length || 0);
 
-  renderWarnings(report, apiErrors);
+  if (warningCount > 0) {
+    elements.warningCount.textContent = warningCount;
+    elements.warningBadge.classList.remove("hidden");
+  } else {
+    elements.warningBadge.classList.add("hidden");
+  }
 }
 
-function renderProjectRow(project) {
-  return `<tr>
-    <td>${escapeHtml(project.client)}</td>
-    <td>${escapeHtml(project.project)}</td>
-    <td>${project.trackedHours}</td>
-    <td>${formatMoney(project.revenue)}</td>
-    <td>${formatMoney(project.cost)}</td>
-    <td>${formatPercent(project.margin)}</td>
-    <td>${project.budgetHours ? formatPercent(project.budgetUsed) : "n/a"}</td>
-  </tr>`;
-}
-
-function renderWarnings(report, apiErrors) {
-  const warningRows = [
-    ...report.missing.peopleRates.map((item) => `Missing people rate: ${item.label} (${item.id})`),
-    ...report.missing.projectRates.map((item) => `Missing project mapping/rate: ${item.label} (${item.id})`),
-    ...report.missing.taskLocation.map((item) => `Missing task location: ${item.label} (${item.id})`),
-    ...apiErrors.map((item) => `Could not fetch assignee ${item.assigneeId}: ${item.message || item.error?.message || "Unknown error"}`),
-  ];
-
-  elements.warningsPanel.classList.toggle("hidden", warningRows.length === 0);
-  elements.warnings.innerHTML = warningRows.map((warning) => `<li>${escapeHtml(warning)}</li>`).join("");
-}
-
-function exportEntries() {
-  if (!latestReport?.entries?.length) return;
-  const stamp = new Date().toISOString().slice(0, 10);
-  downloadCsv(`clickup-margin-report-${stamp}.csv`, toCsv(latestReport.entries));
+function viewReport() {
+  chrome.tabs.create({ url: "report.html" });
 }
 
 function setStatus(message, type = "") {
-  elements.status.className = type ? `status ${type}` : "status";
-  elements.status.textContent = message;
-}
-
-function clearStatus() {
-  setStatus("");
+  elements.statusText.textContent = message;
+  elements.statusDot.className = "popup-status-dot";
+  if (type === "error") elements.statusDot.classList.add("error");
+  else if (type === "success") elements.statusDot.className = "popup-status-dot";
+  else if (type === "active") elements.statusDot.className = "popup-status-dot";
+  else if (type === "warning") elements.statusDot.classList.add("inactive");
+  else elements.statusDot.classList.add("inactive");
 }
 
 function renderTabState(isClickUpTab) {
-  elements.setupPanel.classList.toggle("hidden", isClickUpTab);
-  elements.reportPanel.classList.toggle("hidden", !isClickUpTab);
   elements.runReport.disabled = !isClickUpTab;
-  if (!isClickUpTab) elements.exportCsv.disabled = true;
-}
-
-function openClickUp() {
-  const url = "https://app.clickup.com/";
-  if (typeof chrome !== "undefined" && chrome.tabs?.create) {
-    chrome.tabs.create({ url });
-    return;
+  elements.notClickUpAlert.classList.toggle("hidden", isClickUpTab);
+  if (isClickUpTab) {
+    setStatus("Connected to ClickUp", "success");
+  } else {
+    setStatus("Not connected", "error");
   }
-  window.open(url, "_blank", "noopener");
 }
 
 function friendlyError(error) {
@@ -155,22 +123,13 @@ function friendlyError(error) {
   if (/Reload ClickUp|Could not read data|Could not read ClickUp/i.test(message)) {
     return {
       type: "warning",
-      message: "Could not read the ClickUp tab. Reload ClickUp, then run the report again.",
+      message: "Reload ClickUp tab",
     };
   }
   return {
     type: "error",
-    message: message || "Something went wrong while building the report.",
+    message: message || "Report failed",
   };
-}
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
 }
 
 async function getActiveClickUpTab() {
@@ -191,13 +150,13 @@ async function sendToClickUpTab(tabId, type, payload = {}) {
     response = await chrome.tabs.sendMessage(tabId, message);
   } catch (error) {
     if (!isMissingReceiverError(error)) throw error;
-    setStatus("Connecting to the ClickUp tab...");
+    setStatus("Connecting...");
     await injectContentScript(tabId);
     response = await chrome.tabs.sendMessage(tabId, message);
   }
 
   if (!response?.ok) {
-    throw new Error(response?.error || "Could not read data from the ClickUp tab.");
+    throw new Error(response?.error || "Could not read ClickUp data");
   }
 
   return response.result;
@@ -205,7 +164,7 @@ async function sendToClickUpTab(tabId, type, payload = {}) {
 
 async function injectContentScript(tabId) {
   if (!chrome.scripting?.executeScript) {
-    throw new Error("Reload the ClickUp tab once, then try again.");
+    throw new Error("Reload ClickUp tab");
   }
 
   await chrome.scripting.executeScript({

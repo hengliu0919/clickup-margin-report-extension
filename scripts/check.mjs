@@ -8,6 +8,7 @@ const jsFiles = [
   "options.js",
   "page-bridge.js",
   "popup.js",
+  "report.js",
   "src/csv.js",
   "src/margin.js",
   "src/storage.js",
@@ -36,12 +37,23 @@ if (optionsHtml.includes("Google Sheet")) {
 
 const popupHtml = fs.readFileSync(new URL("popup.html", root), "utf8");
 for (const expected of [
-  "Open ClickUp to run a report",
-  "openClickUp",
-  "Edit rates",
+  "Run Report",
+  "viewReport",
+  "Open ClickUp",
 ]) {
   if (!popupHtml.includes(expected)) {
     throw new Error(`Popup UX is missing "${expected}"`);
+  }
+}
+
+const reportHtml = fs.readFileSync(new URL("report.html", root), "utf8");
+for (const expected of [
+  "Project Breakdown",
+  "Export CSV",
+  "Refresh",
+]) {
+  if (!reportHtml.includes(expected)) {
+    throw new Error(`Report page is missing "${expected}"`);
   }
 }
 

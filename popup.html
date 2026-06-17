@@ -5,80 +5,105 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ClickUp Margin Report</title>
     <link rel="stylesheet" href="styles.css" />
+    <style>
+      body { min-width: 340px; max-width: 380px; }
+      .popup-header {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        padding-bottom: var(--space-3);
+        border-bottom: 1px solid var(--border-primary);
+        margin-bottom: var(--space-4);
+      }
+      .popup-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--radius-md);
+      }
+      .popup-header-text { flex: 1; }
+      .popup-header-text h1 { font-size: var(--text-lg); }
+      .popup-header-text p { font-size: var(--text-xs); margin: 0; }
+      .popup-actions {
+        display: flex;
+        gap: var(--space-2);
+        margin-top: var(--space-4);
+      }
+      .popup-actions .btn { flex: 1; }
+      .popup-status {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-2) 0;
+        font-size: var(--text-sm);
+        color: var(--text-secondary);
+      }
+      .popup-status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--success-500);
+      }
+      .popup-status-dot.inactive { background: var(--text-tertiary); }
+      .popup-status-dot.error { background: var(--danger-500); }
+      .quick-metrics {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-2);
+        margin-top: var(--space-3);
+        padding-top: var(--space-3);
+        border-top: 1px solid var(--border-primary);
+      }
+      .quick-metric-label { font-size: var(--text-xs); color: var(--text-secondary); }
+      .quick-metric-value { font-size: var(--text-xl); font-weight: var(--font-bold); }
+    </style>
   </head>
   <body>
     <main class="app">
-      <div class="topbar">
-        <div>
-          <div class="eyebrow">ClickUp</div>
+      <div class="popup-header">
+        <img class="popup-icon" src="icons/icon-48.png" alt="" />
+        <div class="popup-header-text">
           <h1>Margin Report</h1>
-          <p id="rangeLabel">Existing time entries + private rates.</p>
+          <p id="rangeLabel">14-day lookback</p>
         </div>
-        <button id="openOptions" type="button" class="secondary">Settings</button>
+        <button id="openOptions" type="button" class="btn btn-ghost btn-icon" title="Settings">⚙️</button>
       </div>
 
-      <section id="setupPanel" class="panel hidden">
-        <h2>Open ClickUp to run a report</h2>
-        <p>This extension reads your current ClickUp workspace tab. No personal token needed.</p>
-        <div class="actions">
-          <button id="openClickUp" type="button">Open ClickUp</button>
-          <button id="setupButton" type="button" class="secondary">Edit rates</button>
+      <div id="notClickUpAlert" class="alert alert-warning hidden">
+        <span class="alert-icon">⚠️</span>
+        <div class="alert-content">
+          <p class="alert-title">Open ClickUp</p>
+          <p class="alert-description">Navigate to app.clickup.com first</p>
         </div>
-      </section>
+      </div>
 
-      <section id="reportPanel" class="panel">
-        <h2>Report</h2>
-        <p id="reportHint">Uses your current ClickUp session and selected workspace.</p>
-        <div class="actions">
-          <button id="runReport" type="button">Run report</button>
-          <button id="exportCsv" type="button" class="secondary" disabled>Export entry CSV</button>
+      <div id="statusSection">
+        <div class="popup-status">
+          <span id="statusDot" class="popup-status-dot"></span>
+          <span id="statusText">Connected to ClickUp</span>
         </div>
-        <div id="status" class="status"></div>
-      </section>
+      </div>
 
-      <section id="summaryPanel" class="summary hidden">
-        <div class="metric">
-          <span>Revenue</span>
-          <strong id="revenue">$0</strong>
-        </div>
-        <div class="metric">
-          <span>Cost</span>
-          <strong id="cost">$0</strong>
-        </div>
-        <div class="metric">
-          <span>Gross Profit</span>
-          <strong id="profit">$0</strong>
-        </div>
-        <div class="metric">
-          <span>Margin</span>
-          <strong id="margin">0%</strong>
-        </div>
-      </section>
+      <div class="popup-actions">
+        <button id="runReport" type="button" class="btn btn-primary">Run Report</button>
+        <button id="viewReport" type="button" class="btn btn-secondary hidden">View</button>
+      </div>
 
-      <section id="warningsPanel" class="panel hidden">
-        <h2>Setup Warnings</h2>
-        <ul id="warnings" class="warning-list"></ul>
-      </section>
-
-      <section id="projectsPanel" class="panel hidden">
-        <h2>Projects</h2>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Client</th>
-                <th>Project</th>
-                <th>Hours</th>
-                <th>Revenue</th>
-                <th>Cost</th>
-                <th>Margin</th>
-                <th>Budget</th>
-              </tr>
-            </thead>
-            <tbody id="projectRows"></tbody>
-          </table>
+      <div id="quickMetrics" class="quick-metrics hidden">
+        <div>
+          <div class="quick-metric-label">Revenue</div>
+          <div id="revenue" class="quick-metric-value">$0</div>
         </div>
-      </section>
+        <div>
+          <div class="quick-metric-label">Margin</div>
+          <div id="margin" class="quick-metric-value">0%</div>
+        </div>
+      </div>
+
+      <div id="warningBadge" class="hidden" style="margin-top: var(--space-3);">
+        <span class="badge badge-warning">
+          <span id="warningCount">0</span> warnings
+        </span>
+      </div>
     </main>
 
     <script type="module" src="popup.js"></script>

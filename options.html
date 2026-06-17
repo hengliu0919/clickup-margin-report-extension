@@ -9,52 +9,54 @@
   <body>
     <main class="options-app">
       <div class="topbar">
-        <div>
-          <div class="eyebrow">Settings</div>
+        <div class="topbar-title">
+          <p class="eyebrow">Settings</p>
           <h1>ClickUp Margin Report</h1>
           <p>ClickUp data comes from your current logged-in tab. Keep private rates here for now.</p>
         </div>
         <div class="topbar-actions">
           <div id="topValidationSummary" class="validation-summary"></div>
-          <button id="saveTop">Save</button>
+          <button id="saveTop" class="btn btn-primary">Save</button>
         </div>
       </div>
 
-      <section class="panel">
+      <div class="card">
         <h2>Report Window</h2>
-        <div class="grid settings-grid single">
+        <div class="grid settings-grid-single">
           <label>
             Lookback days
             <input id="lookbackDays" type="number" min="1" max="120" />
           </label>
         </div>
         <p>The extension detects the workspace from the active <code>app.clickup.com</code> tab and reuses the existing ClickUp browser session.</p>
-        <div class="actions">
-          <button id="importFromClickUp" type="button" class="secondary">Refresh ClickUp users/projects</button>
+        <div class="cluster" style="margin-top: var(--space-4);">
+          <button id="importFromClickUp" type="button" class="btn btn-secondary">Refresh ClickUp users/projects</button>
         </div>
         <div class="source-legend" aria-label="Field source legend">
-          <span><span class="source-badge clickup">ClickUp</span> read-only reference</span>
-          <span><span class="source-badge local">Local</span> editable margin settings</span>
+          <span><span class="badge badge-brand">ClickUp</span> read-only reference</span>
+          <span><span class="badge badge-info">Local</span> editable margin settings</span>
         </div>
-        <div id="importStatus" class="status"></div>
-      </section>
+        <div id="importStatus" class="status-text" style="margin-top: var(--space-3);"></div>
+      </div>
 
-      <section class="panel">
+      <div class="card">
         <div class="section-heading">
-          <div>
+          <div class="section-heading-content">
             <h2>Rate Book Storage</h2>
             <p>Choose where private people rates and project billing settings live.</p>
           </div>
-          <span class="badge good">This browser active</span>
+          <div class="section-heading-actions">
+            <span class="badge badge-success">This browser active</span>
+          </div>
         </div>
 
-        <div class="storage-options single" aria-label="Rate book storage options">
-          <label class="storage-option selected">
+        <div class="storage-options" aria-label="Rate book storage options">
+          <label class="storage-option storage-option-selected">
             <input type="radio" name="storageProvider" value="local" checked />
-            <span>
-              <strong>This browser</strong>
-              <small>Private to this Chrome profile. Fastest path for the MVP.</small>
-            </span>
+            <div class="storage-option-content">
+              <span class="storage-option-title">This browser</span>
+              <p class="storage-option-description">Private to this Chrome profile. Fastest path for the MVP.</p>
+            </div>
           </label>
         </div>
 
@@ -66,25 +68,25 @@
             <div class="action-group">
               <h3>People CSV</h3>
               <p>Edit people rates in a spreadsheet, then import just this table.</p>
-              <div class="actions">
-                <button id="exportPeopleCsv" type="button" class="secondary">Export</button>
-                <button id="importPeopleCsv" type="button" class="secondary">Import</button>
+              <div class="cluster">
+                <button id="exportPeopleCsv" type="button" class="btn btn-secondary btn-sm">Export</button>
+                <button id="importPeopleCsv" type="button" class="btn btn-secondary btn-sm">Import</button>
               </div>
             </div>
             <div class="action-group">
               <h3>Project CSV</h3>
               <p>Edit project billing settings in a spreadsheet, then import just this table.</p>
-              <div class="actions">
-                <button id="exportProjectCsv" type="button" class="secondary">Export</button>
-                <button id="importProjectCsv" type="button" class="secondary">Import</button>
+              <div class="cluster">
+                <button id="exportProjectCsv" type="button" class="btn btn-secondary btn-sm">Export</button>
+                <button id="importProjectCsv" type="button" class="btn btn-secondary btn-sm">Import</button>
               </div>
             </div>
             <div class="action-group">
               <h3>Full backup</h3>
               <p>Move all local settings between Chrome profiles or machines.</p>
-              <div class="actions">
-                <button id="exportSettings" type="button" class="secondary">Export JSON</button>
-                <button id="importSettings" type="button" class="secondary">Import JSON</button>
+              <div class="cluster">
+                <button id="exportSettings" type="button" class="btn btn-secondary btn-sm">Export JSON</button>
+                <button id="importSettings" type="button" class="btn btn-secondary btn-sm">Import JSON</button>
               </div>
             </div>
           </div>
@@ -92,61 +94,69 @@
           <input id="importProjectCsvFile" class="hidden" type="file" accept="text/csv,.csv" />
           <input id="importSettingsFile" class="hidden" type="file" accept="application/json,.json" />
         </details>
-        <div id="backupStatus" class="status"></div>
-      </section>
+        <div id="backupStatus" class="status-text" style="margin-top: var(--space-3);"></div>
+      </div>
 
-      <section class="panel">
+      <div class="card">
         <div class="section-heading">
-          <div>
+          <div class="section-heading-content">
             <h2>People Rates</h2>
             <p>People names and IDs come from ClickUp. You fill the local role, cost rate, and default bill rate.</p>
           </div>
-          <button id="addPerson" type="button" class="secondary">Add person</button>
+          <div class="section-heading-actions">
+            <button id="addPerson" type="button" class="btn btn-secondary btn-sm">Add person</button>
+          </div>
         </div>
-        <div class="editable-table-wrap">
-          <table class="editable-table">
-            <thead>
-              <tr>
-                <th>Active</th>
-                <th>Person</th>
-                <th>Role</th>
-                <th>Cost/hr</th>
-                <th>Default bill/hr</th>
-                <th>Currency</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="peopleRows"></tbody>
-          </table>
+        <div class="table-container">
+          <div class="table-scroll">
+            <table class="editable-table">
+              <thead>
+                <tr>
+                  <th>Active</th>
+                  <th>Person</th>
+                  <th>Role</th>
+                  <th>Cost/hr</th>
+                  <th>Default bill/hr</th>
+                  <th>Currency</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="peopleRows"></tbody>
+            </table>
+          </div>
         </div>
-      </section>
+      </div>
 
-      <section class="panel">
+      <div class="card">
         <div class="section-heading">
-          <div>
+          <div class="section-heading-content">
             <h2>Project Rates</h2>
             <p>ClickUp locations are read-only references. You fill the local client, project, bill rate, budget, and target margin.</p>
           </div>
-          <button id="addProject" type="button" class="secondary">Add project</button>
+          <div class="section-heading-actions">
+            <button id="addProject" type="button" class="btn btn-secondary btn-sm">Add project</button>
+          </div>
         </div>
-        <div class="editable-table-wrap">
-          <table class="editable-table">
-            <thead>
-              <tr>
-                <th>Active</th>
-                <th>ClickUp location</th>
-                <th>Client</th>
-                <th>Project</th>
-                <th>Bill/hr</th>
-                <th>Budget hrs</th>
-                <th>Target margin</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="projectRows"></tbody>
-          </table>
+        <div class="table-container">
+          <div class="table-scroll">
+            <table class="editable-table">
+              <thead>
+                <tr>
+                  <th>Active</th>
+                  <th>ClickUp location</th>
+                  <th>Client</th>
+                  <th>Project</th>
+                  <th>Bill/hr</th>
+                  <th>Budget hrs</th>
+                  <th>Target margin</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="projectRows"></tbody>
+            </table>
+          </div>
         </div>
-      </section>
+      </div>
 
       <section id="validationPanel" class="panel hidden">
         <h2>Validation</h2>
