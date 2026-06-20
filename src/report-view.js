@@ -173,11 +173,18 @@ export class ReportView {
     return `<a class="audit-link" href="${escapeHtml(url)}" target="_blank" rel="noopener" title="Open task in ClickUp">${escapeHtml(name)}<span class="audit-arrow" aria-hidden="true">↗</span></a>`;
   }
 
-  // Budget Used cell shows hours-budget %, and $-budget % when a $ budget is set.
+  // Budget Used cell shows the hours-budget %, and the $-budget % when a dollar
+  // budget is set. Each chip is hover-explained with the underlying figures.
   budgetCell(p, currency) {
     const parts = [];
-    if (p.budgetHours) parts.push(`${formatPercent(p.budgetUsed)} hrs${p.overBudget ? " ⚠️" : ""}`);
-    if (p.budgetAmount) parts.push(`${formatPercent(p.budgetAmountUsed)} ${escapeHtml(currency)}${p.overBudgetAmount ? " ⚠️" : ""}`);
+    if (p.budgetHours) {
+      const tip = `${p.trackedHours}h tracked of ${p.budgetHours}h budget`;
+      parts.push(`<span class="has-tip" data-tip="${escapeHtml(tip)}" aria-label="${escapeHtml(tip)}">${formatPercent(p.budgetUsed)} of hours${p.overBudget ? " ⚠️" : ""}</span>`);
+    }
+    if (p.budgetAmount) {
+      const tip = `${formatMoney(p.revenue, currency)} billed of ${formatMoney(p.budgetAmount, currency)} budget`;
+      parts.push(`<span class="has-tip" data-tip="${escapeHtml(tip)}" aria-label="${escapeHtml(tip)}">${formatPercent(p.budgetAmountUsed)} of $ budget${p.overBudgetAmount ? " ⚠️" : ""}</span>`);
+    }
     return parts.length ? parts.join(" · ") : "—";
   }
 

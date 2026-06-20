@@ -1,11 +1,11 @@
 {
   "name": "clickup-margin-report-extension",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
     "check": "node scripts/check.mjs",
-    "test": "node --test scripts/margin.test.mjs scripts/csv.test.mjs scripts/storage.test.mjs scripts/invoice.test.mjs scripts/links.test.mjs",
+    "test": "node --test scripts/*.test.mjs",
     "typecheck": "tsc -p jsconfig.json --noEmit",
     "lint:design": "node scripts/design-lint.mjs"
   },

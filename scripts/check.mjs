@@ -42,6 +42,10 @@ if (!manifest.content_security_policy?.extension_pages) {
 if (manifest.options_page !== "dashboard.html") {
   throw new Error("manifest options_page should be dashboard.html");
 }
+const pkg = JSON.parse(fs.readFileSync(new URL("package.json", root), "utf8"));
+if (manifest.version !== pkg.version) {
+  throw new Error(`version mismatch: manifest ${manifest.version} vs package.json ${pkg.version}`);
+}
 
 // 3. HTML markers the UI depends on.
 assertHtml("dashboard.html", [

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "ClickUp Margin Report",
   "description": "Private bill rates, cost rates, margin, and budget burn for existing ClickUp time entries.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "icons": {
     "16": "icons/icon-16.png",
     "48": "icons/icon-48.png",
