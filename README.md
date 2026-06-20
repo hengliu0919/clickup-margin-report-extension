@@ -2,7 +2,13 @@
 
 Private margin reporting for teams that already track time in ClickUp.
 
-This is the first runnable Chrome extension prototype. It is intentionally small and local-first:
+**[➜ Install from the Chrome Web Store](https://chromewebstore.google.com/detail/clickup-margin-report/hfndegkjohiohaogibmbikfabniddmje)**
+
+![Margin report](store-assets/01-report.png)
+
+Set per-person cost rates and per-project bill rates, then turn the hours your team already logs in ClickUp into revenue, cost, gross profit, and margin — without any data leaving your browser.
+
+This is a runnable Chrome extension. It is intentionally small and local-first:
 
 - reuses the active ClickUp browser session;
 - detects the selected workspace from the active `app.clickup.com` tab;
