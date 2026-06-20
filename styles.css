@@ -4,6 +4,15 @@
 
 /* App-specific styles */
 
+/* Hover tooltips (.has-tip::after) are absolutely positioned and can extend past
+   the right edge for elements near it (e.g. the Refresh button). Clip horizontal
+   overflow at the page so they never add a phantom horizontal scrollbar or shift
+   the centered layout. `clip` (not `hidden`) avoids creating a scroll container. */
+html,
+body {
+  overflow-x: clip;
+}
+
 /* Popup layout */
 .app {
   padding: var(--space-4);

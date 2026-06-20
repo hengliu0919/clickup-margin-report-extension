@@ -564,6 +564,16 @@ tr:hover td {
   visibility: visible;
 }
 
+/* Tooltips inside right-aligned containers (topbar actions, section actions)
+   anchor to the element's right edge so they stay on-screen instead of
+   overflowing the viewport. */
+.topbar-actions .has-tip::after,
+.section-heading-actions .has-tip::after {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
 /* Small "(?)" info affordance that carries a tooltip. */
 .info-dot {
   display: inline-flex;
