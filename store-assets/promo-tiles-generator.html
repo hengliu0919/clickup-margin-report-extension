@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/>
+<style>
+  :root{
+    --indigo:#4f46e5; --indigo2:#6366f1; --ink:#172033; --sub:#687083;
+    --bg:#f7f8fb; --card:#ffffff; --green:#16a34a; --border:#e5e7eb;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;}
+  body{background:var(--bg);}
+  .tile{position:relative;overflow:hidden;background:linear-gradient(135deg,#eef2ff 0%, #f7f8fb 55%);}
+  /* SMALL 440x280 */
+  #small{width:440px;height:280px;padding:28px 30px;display:flex;flex-direction:column;justify-content:space-between;}
+  #small .logo{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--indigo),var(--indigo2));display:flex;align-items:center;justify-content:center;}
+  #small .logo svg{width:26px;height:26px;}
+  #small h1{font-size:25px;line-height:1.15;color:var(--ink);font-weight:800;margin-top:14px;letter-spacing:-0.5px;}
+  #small p{font-size:13px;color:var(--sub);margin-top:7px;line-height:1.4;}
+  #small .kpis{display:flex;gap:10px;margin-top:6px;}
+  #small .kpi{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px 12px;flex:1;box-shadow:0 1px 2px rgba(18,27,45,.05);}
+  #small .kpi .l{font-size:8.5px;text-transform:uppercase;letter-spacing:.06em;color:#9ca3af;}
+  #small .kpi .v{font-size:18px;font-weight:800;color:var(--ink);}
+  #small .kpi .v.g{color:var(--green);}
+  /* MARQUEE 1400x560 */
+  #marquee{width:1400px;height:560px;display:flex;align-items:center;padding:0 90px;gap:70px;}
+  #marquee .left{flex:1;}
+  #marquee .eyebrow{font-size:16px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--indigo);}
+  #marquee h1{font-size:62px;line-height:1.05;color:var(--ink);font-weight:800;margin-top:14px;letter-spacing:-1.5px;}
+  #marquee .accent{color:var(--indigo);}
+  #marquee p{font-size:23px;color:var(--sub);margin-top:22px;line-height:1.45;max-width:620px;}
+  #marquee .chips{display:flex;gap:12px;margin-top:30px;flex-wrap:wrap;}
+  #marquee .chip{background:#fff;border:1px solid var(--border);border-radius:999px;padding:9px 18px;font-size:15px;color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(18,27,45,.05);}
+  #marquee .panel{width:430px;background:#fff;border:1px solid var(--border);border-radius:18px;box-shadow:0 12px 35px rgba(18,27,45,.12);padding:28px 30px;}
+  #marquee .panel .row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:18px;}
+  #marquee .panel .l{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:#9ca3af;}
+  #marquee .panel .big{font-size:38px;font-weight:800;color:var(--ink);}
+  #marquee .panel .big.g{color:var(--green);}
+  #marquee .panel .divider{border-top:1px solid var(--border);margin:6px 0 18px;}
+  #marquee .panel .sub{display:flex;gap:26px;}
+  #marquee .panel .sub div .sl{font-size:11px;color:#9ca3af;}
+  #marquee .panel .sub div .sv{font-size:19px;font-weight:700;color:var(--ink);}
+  .logoLg{width:64px;height:64px;border-radius:16px;background:linear-gradient(135deg,var(--indigo),var(--indigo2));display:flex;align-items:center;justify-content:center;margin-bottom:24px;}
+  .logoLg svg{width:38px;height:38px;}
+</style></head>
+<body>
+<!-- icon: simple upward trend line, white -->
+<template id="ic"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16 L10 10 L14 13 L20 6"/><path d="M15 6 H20 V11"/></svg></template>
+
+<div class="tile" id="small">
+  <div class="logo"></div>
+  <div>
+    <h1>ClickUp Margin Report</h1>
+    <p>Private rates, margin &amp; invoices from your ClickUp time entries.</p>
+  </div>
+  <div class="kpis">
+    <div class="kpi"><div class="l">Revenue</div><div class="v">$6,833</div></div>
+    <div class="kpi"><div class="l">Margin</div><div class="v g">55%</div></div>
+  </div>
+</div>
+
+<div class="tile" id="marquee">
+  <div class="left">
+    <div class="logoLg"></div>
+    <div class="eyebrow">ClickUp Margin Report</div>
+    <h1>See the <span class="accent">profit</span> in your ClickUp time.</h1>
+    <p>Revenue, cost, margin, budget burn, and client-ready invoices — from time you already track. Rates stay private in your browser.</p>
+    <div class="chips"><span class="chip">Margin by project &amp; person</span><span class="chip">Client invoices</span><span class="chip">Budgets &amp; alerts</span><span class="chip">No API token</span></div>
+  </div>
+  <div class="panel">
+    <div class="row"><div><div class="l">Revenue</div><div class="big">$6,833.75</div></div><div style="text-align:right"><div class="l">Margin</div><div class="big g">55%</div></div></div>
+    <div class="divider"></div>
+    <div class="sub">
+      <div><div class="sl">Cost</div><div class="sv">$3,056</div></div>
+      <div><div class="sl">Utilization</div><div class="sv">92%</div></div>
+      <div><div class="sl">Eff. rate</div><div class="sv">$163</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // inject icon svg into all logo holders
+  const svg = document.getElementById('ic').innerHTML;
+  document.querySelectorAll('.logo,.logoLg').forEach(e=>e.innerHTML=svg);
+</script>
+</body></html>
