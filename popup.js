@@ -54,7 +54,7 @@ async function runReport() {
       data.entries.map((entry) => [entry.task?.id, entry.task]).filter(([taskId]) => taskId)
     );
     const { peopleRates, projectRates } = parseRateTables(settings);
-    const report = buildMarginReport({ entries: data.entries, tasksById, peopleRates, projectRates });
+    const report = buildMarginReport({ entries: data.entries, tasksById, peopleRates, projectRates, workspaceId: data.workspaceId });
     report.apiErrors = data.errors || [];
 
     // Quick glance only — the full report lives in the dashboard, which re-fetches.

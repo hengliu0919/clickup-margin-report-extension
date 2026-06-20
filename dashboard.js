@@ -1,5 +1,5 @@
 import { buildMarginReport, parseRateTables } from "./src/margin.js";
-import { loadSettings } from "./src/storage.js";
+import { loadSettings, saveSettings } from "./src/storage.js";
 import { getClickUpTab, sendToClickUpTab } from "./src/clickup-tab.js";
 import { ReportView } from "./src/report-view.js";
 import { RatesView } from "./src/rates-view.js";
@@ -18,6 +18,18 @@ const storageSummary = document.querySelector("#storageSummary");
 let settings = await loadSettings();
 let rawData = null; // cached ClickUp fetch: { entries, users, errors, coverage, range }
 let lastFetchedAt = null;
+let currentReport = null; // latest computed report (for the invoice handoff)
+
+// Maps Settings-tab company input ids to the company setting keys.
+const COMPANY_FIELDS = {
+  "co-name": "name",
+  "co-email": "email",
+  "co-address": "address",
+  "co-prefix": "invoicePrefix",
+  "co-next": "nextInvoiceNumber",
+  "co-terms": "paymentTerms",
+  "co-notes": "notes",
+};
 
 const reportView = new ReportView(tabs.report);
 const ratesView = new RatesView(tabs.rates, {
@@ -34,12 +46,14 @@ const ratesView = new RatesView(tabs.rates, {
 
 // Deep-link from a report warning ("fix in Rates") to the Rates tab.
 tabs.report.addEventListener("goto-tab", (e) => switchTab(e.detail));
+tabs.report.addEventListener("generate-invoices", generateInvoices);
 
 for (const btn of tabButtons) {
   btn.addEventListener("click", () => switchTab(btn.dataset.tab));
 }
 refreshBtn.addEventListener("click", () => runReport({ force: true }));
 
+setupCompanyForm();
 renderStorageSummary();
 reportView.render(null);
 initConnection();
@@ -113,20 +127,67 @@ function recomputeReport() {
     rawData.entries.map((entry) => [entry.task?.id, entry.task]).filter(([taskId]) => taskId)
   );
   const { peopleRates, projectRates } = parseRateTables(settings);
-  const report = buildMarginReport({ entries: rawData.entries, tasksById, peopleRates, projectRates });
+  const report = buildMarginReport({ entries: rawData.entries, tasksById, peopleRates, projectRates, workspaceId: rawData.workspaceId });
   report.apiErrors = rawData.errors || [];
   report.coverage = rawData.coverage || null;
   report.range = rawData.range || null;
+  currentReport = report;
 
   const meta = { range: rawData.range, timestamp: relativeTime(lastFetchedAt) };
   reportView.setMeta(meta);
   reportView.render(report, meta);
 }
 
+// Hand the current report + company details to the invoice page and open it.
+function generateInvoices() {
+  if (!currentReport) return;
+  const payload = {
+    report: {
+      projects: currentReport.projects,
+      currency: currentReport.currency,
+      range: currentReport.range,
+      workspaceId: currentReport.workspaceId,
+    },
+    company: settings.company,
+  };
+  // localStorage (not sessionStorage) so the new invoice tab — a separate
+  // browsing context — can read the handoff across tabs of the same origin.
+  localStorage.setItem("clickup-margin-invoice-data", JSON.stringify(payload));
+  if (typeof chrome !== "undefined" && chrome.tabs?.create) {
+    chrome.tabs.create({ url: "invoice.html" });
+  } else {
+    window.open("invoice.html", "_blank");
+  }
+}
+
 function renderStorageSummary() {
   const p = (settings.peopleRates || []).length;
   const pr = (settings.projectRates || []).length;
   storageSummary.textContent = `People rates: ${p} rows · Project rates: ${pr} rows · Stored in this browser`;
+}
+
+function setupCompanyForm() {
+  const company = settings.company || {};
+  for (const [id, key] of Object.entries(COMPANY_FIELDS)) {
+    const el = document.getElementById(id);
+    if (el) el.value = company[key] ?? "";
+  }
+  const status = document.querySelector("#companySaveStatus");
+  for (const id of Object.keys(COMPANY_FIELDS)) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    el.addEventListener("change", async () => {
+      const next = { ...(settings.company || {}) };
+      for (const [fid, key] of Object.entries(COMPANY_FIELDS)) {
+        next[key] = document.getElementById(fid)?.value ?? "";
+      }
+      settings = await saveSettings({ ...settings, company: next });
+      if (status) {
+        status.className = "status-text status-success";
+        status.textContent = "Saved";
+      }
+    });
+  }
 }
 
 function relativeTime(ts) {

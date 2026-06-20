@@ -72,7 +72,7 @@ export function parseRateTables(settings) {
   return { peopleRates, projectRates };
 }
 
-export function buildMarginReport({ entries, tasksById, peopleRates, projectRates }) {
+export function buildMarginReport({ entries, tasksById, peopleRates, projectRates, workspaceId = "" }) {
   const projectTotals = new Map();
   const peopleTotals = new Map();
   const taskTotals = new Map();
@@ -115,6 +115,8 @@ export function buildMarginReport({ entries, tasksById, peopleRates, projectRate
     const key = project?.listId || `unmapped:${listId || taskId || user.id}`;
     const userName = person?.username || user.name || `User ${user.id || "unknown"}`;
     const taskName = task?.name || entry.task?.name || taskId || "Unknown task";
+    const whenMs = Number(entry.start || entry.start_date || entry.at || 0) || 0;
+    const audit = { hours, billable, revenue, cost, grossProfit, estimated, whenMs, taskId };
 
     accumulate(projectTotals, key, () => ({
       key,
@@ -123,22 +125,23 @@ export function buildMarginReport({ entries, tasksById, peopleRates, projectRate
       budgetHours: project?.budgetHours || 0,
       targetMargin: project?.targetMargin || 0,
       mapped: Boolean(project),
-    }), { hours, billable, revenue, cost, grossProfit, estimated });
+    }), audit);
 
     accumulate(peopleTotals, String(user.id || "unknown"), () => ({
       key: String(user.id || "unknown"),
       user: userName,
       role: person?.role || "",
       mapped: Boolean(person),
-    }), { hours, billable, revenue, cost, grossProfit, estimated });
+    }), audit);
 
     accumulate(taskTotals, String(taskId || `${key}:${taskName}`), () => ({
       key: String(taskId || `${key}:${taskName}`),
       task: taskName,
+      taskId: taskId || "",
       client,
       project: projectName,
       mapped: Boolean(project),
-    }), { hours, billable, revenue, cost, grossProfit, estimated });
+    }), audit);
 
     entryRows.push({
       date: dateLabel(entry),
@@ -177,6 +180,7 @@ export function buildMarginReport({ entries, tasksById, peopleRates, projectRate
   };
 
   return {
+    workspaceId: String(workspaceId || ""),
     totals: displayTotals,
     currencies: [...currencies],
     currency: currencies.size === 1 ? [...currencies][0] : null,
@@ -194,7 +198,7 @@ export function buildMarginReport({ entries, tasksById, peopleRates, projectRate
   };
 }
 
-function accumulate(map, key, makeBase, { hours, billable, revenue, cost, grossProfit, estimated }) {
+function accumulate(map, key, makeBase, { hours, billable, revenue, cost, grossProfit, estimated, whenMs = 0 }) {
   if (!map.has(key)) {
     map.set(key, {
       ...makeBase(),
@@ -204,6 +208,7 @@ function accumulate(map, key, makeBase, { hours, billable, revenue, cost, grossP
       cost: 0,
       grossProfit: 0,
       estimatedRevenue: 0,
+      lastMs: 0, // most recent entry timestamp in this group (for timesheet deep-link)
     });
   }
   const total = map.get(key);
@@ -213,6 +218,7 @@ function accumulate(map, key, makeBase, { hours, billable, revenue, cost, grossP
   total.cost += cost;
   total.grossProfit += grossProfit;
   if (estimated) total.estimatedRevenue += revenue;
+  if (whenMs > total.lastMs) total.lastMs = whenMs;
 }
 
 function finishGroup(total) {

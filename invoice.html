@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Invoice — ClickUp Margin Report</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="invoice.css" />
+  </head>
+  <body>
+    <main class="options-app">
+      <div class="topbar no-print">
+        <div class="topbar-title">
+          <p class="eyebrow">ClickUp Margin Report</p>
+          <h1>Invoices</h1>
+          <p id="invoiceMeta" class="status-text">Preparing invoices…</p>
+        </div>
+        <div class="topbar-actions">
+          <label class="invoice-select-label" for="clientSelect">Client</label>
+          <select id="clientSelect"></select>
+          <button id="printBtn" type="button" class="btn btn-primary">Print / Save PDF</button>
+        </div>
+      </div>
+
+      <div id="emptyState" class="card hidden">
+        <div class="empty-state">
+          <div class="empty-state-icon">🧾</div>
+          <div class="empty-state-title">No billable work to invoice</div>
+          <div class="empty-state-description">Run a report with billable time and project rates first.</div>
+        </div>
+      </div>
+
+      <div id="invoiceSheets"></div>
+    </main>
+
+    <script type="module" src="invoice.js"></script>
+  </body>
+</html>

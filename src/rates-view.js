@@ -1,6 +1,12 @@
 import { downloadCsv, parseCsv, toCsv } from "./csv.js";
 import { demoSettings, defaultSettings, saveSettings } from "./storage.js";
 import { escapeHtml, escapeAttr, dateStamp } from "./dom.js";
+import { TIPS } from "./glossary.js";
+
+// A table header label with a hover tooltip explaining the term.
+function tipHead(label, tip) {
+  return `<span class="has-tip" data-tip="${escapeAttr(tip)}" tabindex="0" aria-label="${escapeAttr(label)}: ${escapeAttr(tip)}">${escapeHtml(label)}</span>`;
+}
 
 const peopleCsvHeaders = ["clickup_user_id", "display_name", "role", "cost_rate", "default_bill_rate", "currency", "active"];
 const projectCsvHeaders = ["scope_type", "scope_id", "scope_name", "client", "project", "bill_rate", "budget_hours", "target_margin", "active"];
@@ -54,7 +60,7 @@ export class RatesView {
           <div class="section-heading-actions"><button class="btn btn-secondary btn-sm" data-action="add-person">Add person</button></div>
         </div>
         <div class="table-container"><div class="table-scroll"><table class="editable-table">
-          <thead><tr><th>Active</th><th>Person</th><th>Role</th><th>Cost/hr</th><th>Default bill/hr</th><th>Currency</th><th></th></tr></thead>
+          <thead><tr><th>Active</th><th>Person</th><th>Role</th><th>${tipHead("Cost/hr", TIPS.costRate)}</th><th>${tipHead("Default bill/hr", TIPS.defaultBillRate)}</th><th>Currency</th><th></th></tr></thead>
           <tbody data-role="people-rows">${this.peopleRowsHtml(s.peopleRates || [])}</tbody>
         </table></div></div>
       </div>
@@ -66,7 +72,7 @@ export class RatesView {
           <div class="section-heading-actions"><button class="btn btn-secondary btn-sm" data-action="add-project">Add project</button></div>
         </div>
         <div class="table-container"><div class="table-scroll"><table class="editable-table">
-          <thead><tr><th>Active</th><th>ClickUp location</th><th>Client</th><th>Project</th><th>Bill/hr</th><th>Budget hrs</th><th>Target margin</th><th></th></tr></thead>
+          <thead><tr><th>Active</th><th>ClickUp location</th><th>Client</th><th>Project</th><th>${tipHead("Bill/hr", TIPS.projectBillRate)}</th><th>${tipHead("Budget hrs", TIPS.budgetHours)}</th><th>${tipHead("Target margin", TIPS.targetMargin)}</th><th></th></tr></thead>
           <tbody data-role="project-rows">${this.projectRowsHtml(s.projectRates || [])}</tbody>
         </table></div></div>
       </div>

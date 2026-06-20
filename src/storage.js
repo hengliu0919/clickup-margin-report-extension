@@ -74,10 +74,22 @@ export const demoSettings = {
   projectRates: defaultProjectRates,
 };
 
+// "Bill from" company details + invoice preferences used by the invoice document.
+const defaultCompany = {
+  name: "",
+  email: "",
+  address: "",
+  invoicePrefix: "INV",
+  nextInvoiceNumber: "1001",
+  paymentTerms: "Net 30",
+  notes: "",
+};
+
 export const defaultSettings = {
   lookbackDays: 14,
   peopleRates: [],
   projectRates: [],
+  company: defaultCompany,
 };
 
 const hasChromeStorage = () =>
@@ -119,6 +131,20 @@ function normalizeSettings(settings) {
     lookbackDays: Math.max(1, Number(settings.lookbackDays || defaultSettings.lookbackDays)),
     peopleRates: normalizePeopleRates(settings.peopleRates, settings.peopleRatesCsv),
     projectRates: normalizeProjectRates(settings.projectRates, settings.projectRatesCsv),
+    company: normalizeCompany(settings.company),
+  };
+}
+
+function normalizeCompany(company) {
+  const c = company && typeof company === "object" ? company : {};
+  return {
+    name: string(c.name),
+    email: string(c.email),
+    address: string(c.address),
+    invoicePrefix: string(c.invoicePrefix || defaultCompany.invoicePrefix),
+    nextInvoiceNumber: string(c.nextInvoiceNumber || defaultCompany.nextInvoiceNumber),
+    paymentTerms: string(c.paymentTerms || defaultCompany.paymentTerms),
+    notes: string(c.notes),
   };
 }
 

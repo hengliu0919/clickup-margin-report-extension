@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "check": "node scripts/check.mjs",
-    "test": "node --test scripts/margin.test.mjs scripts/csv.test.mjs scripts/storage.test.mjs",
+    "test": "node --test scripts/margin.test.mjs scripts/csv.test.mjs scripts/storage.test.mjs scripts/invoice.test.mjs scripts/links.test.mjs",
     "typecheck": "tsc -p jsconfig.json --noEmit",
     "lint:design": "node scripts/design-lint.mjs"
   },

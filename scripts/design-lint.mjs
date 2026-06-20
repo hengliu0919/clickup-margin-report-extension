@@ -14,13 +14,15 @@ const read = (f) => fs.readFileSync(new URL(f, root), "utf8");
 const MARKUP_FILES = [
   "popup.html",
   "dashboard.html",
+  "invoice.html",
   "src/report-view.js",
   "src/rates-view.js",
+  "invoice.js",
 ];
 
 // Stylesheets that may legitimately contain raw colors (the token definitions)
 // and where all class selectors live.
-const CSS_FILES = ["design-tokens.css", "components.css", "styles.css"];
+const CSS_FILES = ["design-tokens.css", "components.css", "styles.css", "invoice.css"];
 
 // Page-scoped <style> blocks are allowed to define layout-only classes; collect
 // classes defined there too so they don't count as "undefined".
