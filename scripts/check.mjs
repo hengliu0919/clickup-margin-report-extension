@@ -67,8 +67,8 @@ assertHtml("invoice.html", ['id="invoiceSheets"', 'id="clientSelect"', 'id="prin
 assertHtml("dashboard.html", ['id="co-name"', 'id="co-prefix"', 'id="co-notes"']);
 
 // View modules carry the report/rates markup now (built as innerHTML strings).
-assertSource("src/report-view.js", ["By project", "By person", "By task", "Invoice CSV", "Generate invoices", "Utilization", "has-tip", "info-dot"]);
-assertSource("src/rates-view.js", ["People Rates", "Project Rates", "Refresh ClickUp users/projects", "Clear all rates", "has-tip"]);
+assertSource("src/report-view.js", ["By project", "By person", "By task", "By type", "Invoice CSV", "Generate invoices", "Utilization", "has-tip", "info-dot"]);
+assertSource("src/rates-view.js", ["People Rates", "Project Rates", "Rate overrides", "Budget $", "Refresh ClickUp users/projects", "Clear all rates", "has-tip"]);
 
 function assertHtml(file, markers) {
   const html = fs.readFileSync(new URL(file, root), "utf8");
@@ -88,7 +88,7 @@ function assertSource(file, markers) {
 execFileSync(process.execPath, [new URL("scripts/design-lint.mjs", root).pathname], { stdio: "inherit" });
 
 // 4. Run the unit + integration tests (node:test).
-const testFiles = ["scripts/margin.test.mjs", "scripts/csv.test.mjs", "scripts/storage.test.mjs", "scripts/invoice.test.mjs", "scripts/links.test.mjs", "scripts/date-range.test.mjs", "scripts/ledger.test.mjs"].map(
+const testFiles = ["scripts/margin.test.mjs", "scripts/csv.test.mjs", "scripts/storage.test.mjs", "scripts/invoice.test.mjs", "scripts/links.test.mjs", "scripts/date-range.test.mjs", "scripts/ledger.test.mjs", "scripts/overrides.test.mjs"].map(
   (file) => new URL(file, root).pathname
 );
 execFileSync(process.execPath, ["--test", ...testFiles], { stdio: "inherit" });

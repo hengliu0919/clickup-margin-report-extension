@@ -98,6 +98,7 @@ export const defaultSettings = {
   range: defaultRange,
   peopleRates: [],
   projectRates: [],
+  rateOverrides: [], // per-person-per-project bill-rate overrides
   company: defaultCompany,
 };
 
@@ -216,8 +217,19 @@ function normalizeSettings(settings) {
     range: normalizeRange(settings.range),
     peopleRates: normalizePeopleRates(settings.peopleRates, settings.peopleRatesCsv),
     projectRates: normalizeProjectRates(settings.projectRates, settings.projectRatesCsv),
+    rateOverrides: normalizeOverrides(settings.rateOverrides),
     company: normalizeCompany(settings.company),
   };
+}
+
+function normalizeOverrides(rows) {
+  if (!Array.isArray(rows)) return [];
+  return rows.map((row) => ({
+    clickup_user_id: string(row.clickup_user_id),
+    scope_id: string(row.scope_id),
+    bill_rate: string(row.bill_rate),
+    active: isActive(row.active),
+  }));
 }
 
 function normalizeRange(range) {
@@ -267,6 +279,7 @@ function normalizeProjectRates(rows, legacyCsv) {
     project: string(row.project),
     bill_rate: string(row.bill_rate),
     budget_hours: string(row.budget_hours),
+    budget_amount: string(row.budget_amount),
     target_margin: string(row.target_margin),
     active: isActive(row.active),
   }));

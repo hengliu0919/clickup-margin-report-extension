@@ -21,6 +21,7 @@ export const TIPS = {
   defaultBillRate: "Fallback hourly rate used when a project has no bill rate of its own.",
   projectBillRate: "Hourly rate charged to the client for work on this project's ClickUp List.",
   budgetHours: "Planned hours for this project. Used to show budget burn. Optional.",
+  budgetAmount: "Planned budget in money for this project. The report flags projects whose revenue exceeds it. Optional.",
 
   // Affordances
   auditLink: "Open this in ClickUp to verify the underlying time entries.",

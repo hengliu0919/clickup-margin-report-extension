@@ -184,9 +184,9 @@ async function recomputeReport() {
   const tasksById = new Map(
     rawData.entries.map((entry) => [entry.task?.id, entry.task]).filter(([taskId]) => taskId)
   );
-  const { peopleRates, projectRates } = parseRateTables(settings);
+  const { peopleRates, projectRates, rateOverrides } = parseRateTables(settings);
   const excludeEntryIds = excludeInvoiced?.checked ? await invoicedEntryIds() : null;
-  const report = buildMarginReport({ entries: rawData.entries, tasksById, peopleRates, projectRates, workspaceId: rawData.workspaceId, excludeEntryIds });
+  const report = buildMarginReport({ entries: rawData.entries, tasksById, peopleRates, projectRates, rateOverrides, workspaceId: rawData.workspaceId, excludeEntryIds });
   report.apiErrors = rawData.errors || [];
   report.coverage = rawData.coverage || null;
   report.range = rawData.range || null;

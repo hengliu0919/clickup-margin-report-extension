@@ -69,8 +69,20 @@ export class RatesView {
           <div class="section-heading-actions"><button class="btn btn-secondary btn-sm" data-action="add-project">Add project</button></div>
         </div>
         <div class="table-container"><div class="table-scroll"><table class="editable-table">
-          <thead><tr><th>Active</th><th>ClickUp location</th><th>Client</th><th>Project</th><th>${tipHead("Bill/hr", TIPS.projectBillRate)}</th><th>${tipHead("Budget hrs", TIPS.budgetHours)}</th><th>${tipHead("Target margin", TIPS.targetMargin)}</th><th></th></tr></thead>
+          <thead><tr><th>Active</th><th>ClickUp location</th><th>Client</th><th>Project</th><th>${tipHead("Bill/hr", TIPS.projectBillRate)}</th><th>${tipHead("Budget hrs", TIPS.budgetHours)}</th><th>${tipHead("Budget $", TIPS.budgetAmount)}</th><th>${tipHead("Target margin", TIPS.targetMargin)}</th><th></th></tr></thead>
           <tbody data-role="project-rows">${this.projectRowsHtml(s.projectRates || [])}</tbody>
+        </table></div></div>
+      </div>
+
+      <div class="card" id="overrides">
+        <div class="section-heading">
+          <div class="section-heading-content"><h2>Rate overrides</h2>
+          <p>Optional: a specific bill rate for one person on one project. Wins over the project rate and the person’s default.</p></div>
+          <div class="section-heading-actions"><button class="btn btn-secondary btn-sm" data-action="add-override"${(s.peopleRates || []).length && (s.projectRates || []).length ? "" : " disabled"}>Add override</button></div>
+        </div>
+        <div class="table-container"><div class="table-scroll"><table class="editable-table">
+          <thead><tr><th>Active</th><th>Person</th><th>Project</th><th>${tipHead("Bill/hr", TIPS.projectBillRate)}</th><th></th></tr></thead>
+          <tbody data-role="override-rows">${this.overrideRowsHtml(s.rateOverrides || [], s)}</tbody>
         </table></div></div>
       </div>
 
@@ -130,7 +142,23 @@ export class RatesView {
       <td><input data-field="project" value="${escapeAttr(row.project)}" placeholder="Project" /></td>
       <td><input data-field="bill_rate" value="${escapeAttr(row.bill_rate)}" inputmode="decimal" placeholder="150" /></td>
       <td><input data-field="budget_hours" value="${escapeAttr(row.budget_hours)}" inputmode="decimal" placeholder="80" /></td>
+      <td><input data-field="budget_amount" value="${escapeAttr(row.budget_amount)}" inputmode="decimal" placeholder="12000" /></td>
       <td><input data-field="target_margin" value="${escapeAttr(row.target_margin)}" inputmode="decimal" placeholder="0.55" /></td>
+      <td><button class="btn btn-danger btn-sm" data-action="remove">Remove</button></td></tr>`).join("");
+  }
+
+  overrideRowsHtml(rows, settings) {
+    const people = (settings.peopleRates || []).filter((p) => p.clickup_user_id);
+    const projects = (settings.projectRates || []).filter((p) => p.scope_id);
+    const personOpts = (sel) => people.map((p) =>
+      `<option value="${escapeAttr(p.clickup_user_id)}"${String(p.clickup_user_id) === String(sel) ? " selected" : ""}>${escapeHtml(p.display_name || p.clickup_user_id)}</option>`).join("");
+    const projectOpts = (sel) => projects.map((p) =>
+      `<option value="${escapeAttr(p.scope_id)}"${String(p.scope_id) === String(sel) ? " selected" : ""}>${escapeHtml(p.client || "")}${p.project ? " · " + escapeHtml(p.project) : ""}</option>`).join("");
+    return rows.map((row, i) => `<tr data-kind="override" data-index="${i}">
+      <td><input type="checkbox" data-field="active" ${row.active ? "checked" : ""} /></td>
+      <td><select data-field="clickup_user_id"><option value="">—</option>${personOpts(row.clickup_user_id)}</select></td>
+      <td><select data-field="scope_id"><option value="">—</option>${projectOpts(row.scope_id)}</select></td>
+      <td><input data-field="bill_rate" value="${escapeAttr(row.bill_rate)}" inputmode="decimal" placeholder="200" /></td>
       <td><button class="btn btn-danger btn-sm" data-action="remove">Remove</button></td></tr>`).join("");
   }
 
@@ -162,12 +190,19 @@ export class RatesView {
     this.el("validation-panel").innerHTML = this.validationHtml();
   }
 
+  rowsFor(kind) {
+    if (kind === "people") return this.settings.peopleRates;
+    if (kind === "project") return this.settings.projectRates;
+    if (kind === "override") return this.settings.rateOverrides;
+    return [];
+  }
+
   onInput(e) {
     const target = e.target;
     const rowEl = target.closest("tr[data-kind]");
     if (rowEl && target.dataset.field) {
       const index = Number(rowEl.dataset.index);
-      const rows = rowEl.dataset.kind === "people" ? this.settings.peopleRates : this.settings.projectRates;
+      const rows = this.rowsFor(rowEl.dataset.kind);
       rows[index][target.dataset.field] = target.type === "checkbox" ? target.checked : target.value;
       this.refreshValidation();
       this.persist();
@@ -186,6 +221,7 @@ export class RatesView {
       lookbackDays: this.settings.lookbackDays,
       peopleRates: this.settings.peopleRates,
       projectRates: this.settings.projectRates,
+      rateOverrides: this.settings.rateOverrides,
     };
   }
 
@@ -197,8 +233,7 @@ export class RatesView {
     if (action === "remove") {
       const rowEl = btn.closest("tr[data-kind]");
       const index = Number(rowEl.dataset.index);
-      const rows = rowEl.dataset.kind === "people" ? this.settings.peopleRates : this.settings.projectRates;
-      rows.splice(index, 1);
+      this.rowsFor(rowEl.dataset.kind).splice(index, 1);
       await this.persist();
       this.render();
       return;
@@ -210,7 +245,13 @@ export class RatesView {
       return;
     }
     if (action === "add-project") {
-      this.settings.projectRates.push({ scope_type: "list", scope_id: manualId(), scope_name: "", client: "", project: "", bill_rate: "", budget_hours: "", target_margin: "", active: true });
+      this.settings.projectRates.push({ scope_type: "list", scope_id: manualId(), scope_name: "", client: "", project: "", bill_rate: "", budget_hours: "", budget_amount: "", target_margin: "", active: true });
+      await this.persist();
+      this.render();
+      return;
+    }
+    if (action === "add-override") {
+      this.settings.rateOverrides.push({ clickup_user_id: "", scope_id: "", bill_rate: "", active: true });
       await this.persist();
       this.render();
       return;

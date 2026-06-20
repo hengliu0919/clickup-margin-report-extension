@@ -64,18 +64,34 @@ export function parseRateTables(settings) {
           project: row.project || "Unmapped project",
           billRate: number(row.bill_rate),
           budgetHours: number(row.budget_hours),
+          budgetAmount: number(row.budget_amount),
           targetMargin: number(row.target_margin),
         },
       ])
   );
 
-  return { peopleRates, projectRates };
+  // Optional per-person-per-project bill-rate overrides, keyed "userId:listId".
+  // These win over the project's bill rate and the person's default bill rate.
+  const overrideRows = Array.isArray(settings.rateOverrides) ? settings.rateOverrides : [];
+  const rateOverrides = new Map(
+    overrideRows
+      .filter((row) => row.active !== false && row.active !== "false" && row.clickup_user_id && row.scope_id && isPositiveNumber(row.bill_rate))
+      .map((row) => [`${row.clickup_user_id}:${row.scope_id}`, number(row.bill_rate)])
+  );
+
+  return { peopleRates, projectRates, rateOverrides };
 }
 
-export function buildMarginReport({ entries, tasksById, peopleRates, projectRates, workspaceId = "", excludeEntryIds = null }) {
+function isPositiveNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0;
+}
+
+export function buildMarginReport({ entries, tasksById, peopleRates, projectRates, rateOverrides = null, workspaceId = "", excludeEntryIds = null }) {
   const projectTotals = new Map();
   const peopleTotals = new Map();
   const taskTotals = new Map();
+  const typeTotals = new Map();
   const entryRows = [];
   const currencies = new Set();
   let excludedCount = 0;
@@ -102,11 +118,14 @@ export function buildMarginReport({ entries, tasksById, peopleRates, projectRate
     const hours = durationHours(entry);
     const billable = isBillable(entry);
     const costRate = person?.costRate ?? 0;
+    // Rate precedence: per-person-per-project override > project rate > person default.
+    const override = rateOverrides?.get(`${user.id}:${listId}`);
+    const hasOverride = Number(override) > 0;
     const hasProjectRate = Number(project?.billRate) > 0;
-    const billRate = hasProjectRate ? project.billRate : person?.defaultBillRate || 0;
-    // Revenue from a person's default bill rate (no project mapping) is an estimate,
-    // not a contracted rate. Track it so the UI can flag the figure.
-    const estimated = billable && !hasProjectRate && billRate > 0;
+    const billRate = hasOverride ? override : hasProjectRate ? project.billRate : person?.defaultBillRate || 0;
+    // Revenue from a person's default bill rate (no project rate/override) is an
+    // estimate, not a contracted rate. Track it so the UI can flag the figure.
+    const estimated = billable && !hasOverride && !hasProjectRate && billRate > 0;
     const revenue = billable ? hours * billRate : 0;
     const cost = hours * costRate;
     const grossProfit = revenue - cost;
@@ -129,6 +148,7 @@ export function buildMarginReport({ entries, tasksById, peopleRates, projectRate
       client,
       project: projectName,
       budgetHours: project?.budgetHours || 0,
+      budgetAmount: project?.budgetAmount || 0,
       targetMargin: project?.targetMargin || 0,
       mapped: Boolean(project),
     }), audit);
@@ -148,6 +168,9 @@ export function buildMarginReport({ entries, tasksById, peopleRates, projectRate
       project: projectName,
       mapped: Boolean(project),
     }), audit);
+
+    const typeName = task?.type || entry.task?.type || "Task";
+    accumulate(typeTotals, typeName, () => ({ key: typeName, type: typeName }), audit);
 
     entryRows.push({
       date: dateLabel(entry),
@@ -175,6 +198,9 @@ export function buildMarginReport({ entries, tasksById, peopleRates, projectRate
   const tasks = [...taskTotals.values()]
     .map((total) => finishGroup(total))
     .sort((a, b) => b.trackedHours - a.trackedHours);
+  const types = [...typeTotals.values()]
+    .map((total) => finishGroup(total))
+    .sort((a, b) => b.trackedHours - a.trackedHours);
 
   const totals = sumRaw(projectTotals.values());
   const displayTotals = {
@@ -195,6 +221,7 @@ export function buildMarginReport({ entries, tasksById, peopleRates, projectRate
     projects,
     people,
     tasks,
+    types,
     entries: entryRows,
     alerts: buildAlerts(projects),
     missing: {
@@ -270,10 +297,16 @@ function finishGroup(total) {
 function finishProject(total) {
   const group = finishGroup(total);
   const budgetUsed = total.budgetHours ? round(total.trackedHours / total.budgetHours) : 0;
+  // Dollar budget tracks revenue (what's billable) against the planned amount.
+  const budgetAmount = total.budgetAmount || 0;
+  const budgetAmountUsed = budgetAmount ? round(total.revenue / budgetAmount) : 0;
   return {
     ...group,
     budgetUsed,
     overBudget: Boolean(total.budgetHours) && total.trackedHours > total.budgetHours,
+    budgetAmount,
+    budgetAmountUsed,
+    overBudgetAmount: Boolean(budgetAmount) && total.revenue > budgetAmount,
     belowTarget: Boolean(total.targetMargin) && total.revenue > 0 && group.margin < total.targetMargin,
     marginGap: total.targetMargin ? round(group.margin - total.targetMargin) : 0,
   };
@@ -308,6 +341,13 @@ function buildAlerts(projects) {
       trackedHours: p.trackedHours,
       budgetHours: p.budgetHours,
       budgetUsed: p.budgetUsed,
+    })),
+    overBudgetAmount: projects.filter((p) => p.overBudgetAmount).map((p) => ({
+      key: p.key,
+      label: `${p.client} · ${p.project}`,
+      revenue: p.revenue,
+      budgetAmount: p.budgetAmount,
+      budgetAmountUsed: p.budgetAmountUsed,
     })),
   };
 }

@@ -68,6 +68,7 @@ export class ReportView {
               ${this.breakdownTab("projects", "By project")}
               ${this.breakdownTab("people", "By person")}
               ${this.breakdownTab("tasks", "By task")}
+              ${this.breakdownTab("types", "By type")}
             </div>
           </div>
         </div>
@@ -83,10 +84,11 @@ export class ReportView {
   }
 
   breakdownLabel() {
-    const map = { projects: this.report.projects, people: this.report.people, tasks: this.report.tasks };
-    const noun = { projects: "project", people: "person", tasks: "task" }[this.view];
+    const map = { projects: this.report.projects, people: this.report.people, tasks: this.report.tasks, types: this.report.types };
+    const noun = { projects: "project", people: "person", tasks: "task", types: "type" }[this.view];
     const n = (map[this.view] || []).length;
-    return `${n} ${noun}${n === 1 ? "" : noun === "person" ? "s" : "s"}`;
+    const plural = n === 1 ? "" : noun === "person" ? "s" : "s";
+    return `${n} ${n === 1 ? noun : noun + plural}`;
   }
 
   headHtml() {
@@ -94,6 +96,7 @@ export class ReportView {
       projects: ["Client", "Project", "Hours", "Revenue", "Cost", "Gross Profit", "Margin", "Budget Used"],
       people: ["Person", "Role", "Tracked", "Billable", "Utilization", "Revenue", "Cost", "Margin"],
       tasks: ["Task", "Client", "Project", "Hours", "Billable", "Revenue", "Cost", "Margin"],
+      types: ["Task type", "Tracked", "Billable", "Utilization", "Revenue", "Cost", "Margin"],
     }[this.view];
     return `<tr>${cols.map((c) => `<th>${this.headLabel(c)}</th>`).join("")}</tr>`;
   }
@@ -113,7 +116,7 @@ export class ReportView {
 
   rowsHtml() {
     const currency = this.report.currency || "USD";
-    const rows = { projects: this.report.projects, people: this.report.people, tasks: this.report.tasks }[this.view] || [];
+    const rows = { projects: this.report.projects, people: this.report.people, tasks: this.report.tasks, types: this.report.types }[this.view] || [];
     if (!rows.length) {
       const span = this.headHtml().match(/<th>/g).length;
       return `<tr><td colspan="${span}" class="table-empty"><div class="empty-state">
@@ -127,12 +130,12 @@ export class ReportView {
     // can't be URL-filtered by person/task, so we never link there (it lands on
     // the viewer's own "My timesheet" and looks empty).
     if (this.view === "projects") {
-      return rows.map((p) => `<tr class="${p.belowTarget || p.overBudget ? "row-flag" : ""}">
+      return rows.map((p) => `<tr class="${p.belowTarget || p.overBudget || p.overBudgetAmount ? "row-flag" : ""}">
         <td>${escapeHtml(p.client)}</td><td>${escapeHtml(p.project)}</td>
         <td>${this.hoursCell(p.trackedHours, p.topTaskId, p.topTaskName)}</td>
         <td>${formatMoney(p.revenue, currency)}</td><td>${formatMoney(p.cost, currency)}</td>
         <td>${formatMoney(p.grossProfit, currency)}</td><td>${this.marginCell(p)}</td>
-        <td>${p.budgetHours ? `${formatPercent(p.budgetUsed)}${p.overBudget ? " ⚠️" : ""}` : "—"}</td></tr>`).join("");
+        <td>${this.budgetCell(p, currency)}</td></tr>`).join("");
     }
     if (this.view === "people") {
       return rows.map((p) => `<tr>
@@ -141,6 +144,13 @@ export class ReportView {
         <td>${this.hoursCell(p.billableHours, p.topTaskId, p.topTaskName)}</td><td>${formatPercent(p.utilization)}</td>
         <td>${formatMoney(p.revenue, currency)}</td><td>${formatMoney(p.cost, currency)}</td>
         <td>${formatPercent(p.margin)}</td></tr>`).join("");
+    }
+    if (this.view === "types") {
+      return rows.map((t) => `<tr>
+        <td>${escapeHtml(t.type)}</td>
+        <td>${t.trackedHours}</td><td>${t.billableHours}</td><td>${formatPercent(t.utilization)}</td>
+        <td>${formatMoney(t.revenue, currency)}</td><td>${formatMoney(t.cost, currency)}</td>
+        <td>${formatPercent(t.margin)}</td></tr>`).join("");
     }
     return rows.map((t) => `<tr>
       <td>${this.taskLinkCell(t.task, t.taskId)}</td><td>${escapeHtml(t.client)}</td><td>${escapeHtml(t.project)}</td>
@@ -163,6 +173,14 @@ export class ReportView {
     return `<a class="audit-link" href="${escapeHtml(url)}" target="_blank" rel="noopener" title="Open task in ClickUp">${escapeHtml(name)}<span class="audit-arrow" aria-hidden="true">↗</span></a>`;
   }
 
+  // Budget Used cell shows hours-budget %, and $-budget % when a $ budget is set.
+  budgetCell(p, currency) {
+    const parts = [];
+    if (p.budgetHours) parts.push(`${formatPercent(p.budgetUsed)} hrs${p.overBudget ? " ⚠️" : ""}`);
+    if (p.budgetAmount) parts.push(`${formatPercent(p.budgetAmountUsed)} ${escapeHtml(currency)}${p.overBudgetAmount ? " ⚠️" : ""}`);
+    return parts.length ? parts.join(" · ") : "—";
+  }
+
   marginCell(p) {
     if (!p.targetMargin) return formatPercent(p.margin);
     const cls = p.belowTarget ? "status-error" : "status-success";
@@ -170,10 +188,12 @@ export class ReportView {
   }
 
   alertsHtml(report) {
-    const a = report.alerts || { belowTarget: [], overBudget: [] };
+    const a = report.alerts || { belowTarget: [], overBudget: [], overBudgetAmount: [] };
+    const currency = report.currency || "USD";
     const items = [
       ...a.belowTarget.map((x) => `<li><strong>${escapeHtml(x.label)}</strong> — margin ${formatPercent(x.margin)} is below target ${formatPercent(x.targetMargin)}</li>`),
       ...a.overBudget.map((x) => `<li><strong>${escapeHtml(x.label)}</strong> — ${x.trackedHours}h of ${x.budgetHours}h budget (${formatPercent(x.budgetUsed)})</li>`),
+      ...(a.overBudgetAmount || []).map((x) => `<li><strong>${escapeHtml(x.label)}</strong> — ${formatMoney(x.revenue, currency)} of ${formatMoney(x.budgetAmount, currency)} budget (${formatPercent(x.budgetAmountUsed)})</li>`),
     ];
     if (!items.length) return "";
     return `<div class="alert alert-danger"><span class="alert-icon">🚩</span><div class="alert-content">

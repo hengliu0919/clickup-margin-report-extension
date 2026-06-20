@@ -316,10 +316,20 @@
       task: {
         id: task.id,
         name: task.name,
+        // ClickUp "Task Type" (custom_type). null/absent means the default "Task".
+        type: taskTypeLabel(task.custom_type),
         list: task.hierarchy?.list ? { id: String(task.hierarchy.list.id), name: task.hierarchy.list.name } : null,
         space: task.hierarchy?.space ? { id: String(task.hierarchy.space.id), name: task.hierarchy.space.name } : null,
       },
     };
+  }
+
+  // custom_type may be null (default), an id (number/string), or an object with
+  // a name. Normalize to a readable label.
+  function taskTypeLabel(customType) {
+    if (customType == null || customType === "") return "Task";
+    if (typeof customType === "object") return customType.name || customType.label || String(customType.id ?? "Task");
+    return String(customType);
   }
 
   // Build the [start, end] window from the request: an explicit startMs/endMs
