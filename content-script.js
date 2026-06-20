@@ -4,11 +4,11 @@
 
   const PAGE_READY = "clickup-margin-report-page-ready";
   const CONTENT_INIT = "clickup-margin-report-content-init";
+  const CONTENT_HELLO = "clickup-margin-report-content-hello";
 
   const pending = new Map();
   let port = null;
-  let portReady = null;
-  let portTransferred = false;
+  let connecting = null; // in-flight connect() promise, if any
 
   injectBridge();
 
@@ -26,8 +26,6 @@
     const id = "clickup-margin-report-page-bridge";
     if (document.getElementById(id)) return;
 
-    portReady = connect();
-
     const script = document.createElement("script");
     script.id = id;
     script.src = chrome.runtime.getURL("page-bridge.js");
@@ -36,16 +34,43 @@
     script.remove();
   }
 
+  // Return a live port, (re)connecting on demand. Unlike a one-shot handshake at
+  // injection time, this recovers if an earlier connect attempt failed (e.g. the
+  // request arrived before the bridge finished loading).
+  function getPort() {
+    if (port) return Promise.resolve(port);
+    if (!connecting) {
+      connecting = connect()
+        .then((p) => {
+          port = p;
+          connecting = null;
+          return p;
+        })
+        .catch((err) => {
+          connecting = null;
+          throw err;
+        });
+    }
+    return connecting;
+  }
+
   // Establish a private MessageChannel with the page bridge. The bridge replies
   // only on this port, and port2 is transferred exactly once via a structured
   // clone the page cannot intercept. Page-world JS on app.clickup.com therefore
   // cannot impersonate the content script to mint a token or read financial data.
+  //
+  // Both scripts may load in either order (the bridge <script> is async), so we
+  // use a two-way solicitation: the content script keeps sending CONTENT_HELLO
+  // until the bridge answers PAGE_READY, and the bridge also announces PAGE_READY
+  // when it loads. Whichever happens first, the port is transferred exactly once.
   function connect() {
     return new Promise((resolve, reject) => {
       const channel = new MessageChannel();
-      port = channel.port1;
+      const localPort = channel.port1;
+      let transferred = false;
+      let pingTimer = null;
 
-      port.onmessage = (event) => {
+      localPort.onmessage = (event) => {
         const message = event.data;
         if (!message || !pending.has(message.requestId)) return;
         const { resolve: res, reject: rej, timeout } = pending.get(message.requestId);
@@ -54,49 +79,57 @@
         if (message.ok) res(message.result);
         else rej(new Error(message.error || "ClickUp page bridge request failed."));
       };
-      port.start();
+      localPort.start();
 
       const transfer = () => {
-        if (portTransferred) return;
-        portTransferred = true;
+        if (transferred) return;
+        transferred = true;
+        if (pingTimer) clearInterval(pingTimer);
+        window.removeEventListener("message", onReady);
         window.postMessage({ source: CONTENT_INIT }, window.location.origin, [channel.port2]);
-        resolve(port);
+        resolve(localPort);
       };
 
-      // The bridge posts PAGE_READY once it has loaded. We register this listener
-      // before the script can execute (dynamic src scripts always load async), so
-      // the signal is not missed.
+      // Transfer the port only once the bridge has actually answered.
       const onReady = (event) => {
         if (event.source !== window) return;
         if (event.data?.source !== PAGE_READY) return;
-        window.removeEventListener("message", onReady);
         transfer();
       };
       window.addEventListener("message", onReady);
 
-      // Fallback: if the ready signal never arrives (bridge already present from a
-      // prior injection), transfer anyway after a short delay, then give up later.
-      setTimeout(transfer, 500);
+      // Solicit the bridge until it answers (covers the bridge loading after us).
+      window.postMessage({ source: CONTENT_HELLO }, window.location.origin);
+      pingTimer = setInterval(() => {
+        if (transferred) return clearInterval(pingTimer);
+        window.postMessage({ source: CONTENT_HELLO }, window.location.origin);
+      }, 250);
+
       setTimeout(() => {
-        if (!portTransferred) reject(new Error("Could not connect to the ClickUp page bridge. Reload ClickUp."));
-      }, 5000);
+        if (transferred) return;
+        clearInterval(pingTimer);
+        window.removeEventListener("message", onReady);
+        reject(new Error("Could not connect to the ClickUp page bridge. Reload the ClickUp tab."));
+      }, 10000);
     });
   }
 
   async function bridgeRequest(type, payload = {}) {
-    await portReady;
+    const activePort = await getPort();
     const requestId = crypto.randomUUID();
     const timeout = setTimeout(() => {
       if (!pending.has(requestId)) return;
       pending.get(requestId).reject(new Error("Timed out waiting for ClickUp page data. Reload the ClickUp tab and try again."));
       pending.delete(requestId);
+      // Drop the (possibly dead) port so the next request reconnects fresh.
+      port = null;
     }, 30000);
 
     const promise = new Promise((resolve, reject) => {
       pending.set(requestId, { resolve, reject, timeout });
     });
 
-    port.postMessage({ requestId, type, ...payload });
+    activePort.postMessage({ requestId, type, ...payload });
     return promise;
   }
 })();

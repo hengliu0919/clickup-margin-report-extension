@@ -1,6 +1,6 @@
 import { buildMarginReport, parseRateTables } from "./src/margin.js";
 import { loadSettings, saveSettings } from "./src/storage.js";
-import { getClickUpTab, sendToClickUpTab } from "./src/clickup-tab.js";
+import { getClickUpTab, sendToClickUpTab, ensureBridgeReady } from "./src/clickup-tab.js";
 import { ReportView } from "./src/report-view.js";
 import { RatesView } from "./src/rates-view.js";
 import { RANGE_PRESETS, resolveRange } from "./src/date-range.js";
@@ -94,6 +94,9 @@ function currentRange() {
 async function fetchClickUpData() {
   const tab = await getClickUpTab({ preferActive: true });
   if (!tab) throw new Error("Open a ClickUp workspace tab first.");
+  // Complete the bridge handshake with fast pings first, so the heavy data
+  // request doesn't race a not-yet-ready bridge and stall on its long timeout.
+  await ensureBridgeReady(tab.id, { onStatus: (m) => setGlobalStatus(m) });
   const range = currentRange();
   const data = await sendToClickUpTab(
     tab.id,
@@ -104,12 +107,24 @@ async function fetchClickUpData() {
   return data;
 }
 
-async function runReport({ force = false, silentIfNoTab = false } = {}) {
+// The content-script <-> page-bridge MessagePort handshake takes a moment after
+// a fresh injection, so the very first request can fail transiently. Auto-retry
+// a few times (keeping the loading state) before surfacing an error, so first
+// load is seamless. "No ClickUp tab" is NOT transient — that needs user action.
+const MAX_AUTO_RETRIES = 3;
+
+function isTransientError(message = "") {
+  return /Timed out|Could not read|page bridge|Receiving end does not exist|Could not establish connection|Could not connect/i.test(message);
+}
+
+async function runReport({ force = false, silentIfNoTab = false, attempt = 0 } = {}) {
   refreshBtn.disabled = true;
   setGlobalStatus("");
   // Only show the loading placeholder when we have nothing to display yet, so a
   // refresh of an existing report doesn't blank the screen.
-  if (!currentReport) reportView.renderState("loading", "Reading time data from your ClickUp tab…");
+  if (!currentReport) {
+    reportView.renderState("loading", attempt > 0 ? "Connecting to ClickUp…" : "Reading time data from your ClickUp tab…");
+  }
   try {
     settings = await loadSettings();
     ratesView.setSettings(settings);
@@ -118,20 +133,29 @@ async function runReport({ force = false, silentIfNoTab = false } = {}) {
     initConnection();
     recomputeReport();
   } catch (error) {
-    const noTab = /Open a ClickUp/i.test(error.message);
-    if (silentIfNoTab && noTab && !currentReport) {
+    const message = error?.message || "";
+    const noTab = /Open a ClickUp/i.test(message);
+
+    // Transient first-load failure: wait briefly and retry without alarming the user.
+    if (!noTab && isTransientError(message) && attempt < MAX_AUTO_RETRIES) {
+      refreshBtn.disabled = false;
+      await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+      return runReport({ force, silentIfNoTab, attempt: attempt + 1 });
+    }
+
+    if (noTab && !currentReport) {
       reportView.renderState("empty", "Open an app.clickup.com tab, then load your time data.", {
         actionLabel: "Load data",
         actionEvent: "retry",
       });
     } else if (!currentReport) {
-      reportView.renderState("error", error.message || "Failed to load report.", {
+      reportView.renderState("error", message || "Failed to load report.", {
         actionLabel: "Try again",
         actionEvent: "retry",
       });
     } else {
       // Keep the existing report visible; just surface the error inline.
-      setGlobalStatus(error.message || "Failed to refresh", "error");
+      setGlobalStatus(message || "Failed to refresh", "error");
     }
   } finally {
     refreshBtn.disabled = false;

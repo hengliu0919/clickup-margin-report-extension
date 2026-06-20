@@ -4,6 +4,7 @@
 
   const PAGE_READY = "clickup-margin-report-page-ready";
   const CONTENT_INIT = "clickup-margin-report-content-init";
+  const CONTENT_HELLO = "clickup-margin-report-content-hello";
   // Internal ClickUp endpoints, centralized so an API change is a one-line edit.
   const frontdoorBase = "https://frontdoor-prod-us-east-2-2.clickup.com";
   const identityBase = "https://id.app.clickup.com";
@@ -17,14 +18,24 @@
   // Accept exactly one private MessagePort from the content script. All requests
   // and replies flow over this port; we never service requests from generic
   // window messages, so page-world JS cannot drive the bridge or read the token.
-  let connected = false;
   window.addEventListener("message", (event) => {
     if (event.source !== window) return;
-    if (event.data?.source !== CONTENT_INIT) return;
-    const [port] = event.ports || [];
-    if (!port || connected) return;
-    connected = true;
+    const src = event.data?.source;
 
+    // The content script solicits us until we answer; always reply with PAGE_READY
+    // so a fresh content-script connection (e.g. after a failed first attempt) can
+    // re-handshake. Only the content script can transfer a MessagePort to us, so
+    // re-binding to the latest port is safe from page-world JS.
+    if (src === CONTENT_HELLO) {
+      window.postMessage({ source: PAGE_READY }, window.location.origin);
+      return;
+    }
+
+    if (src !== CONTENT_INIT) return;
+    const [port] = event.ports || [];
+    if (!port) return;
+
+    // Bind (or rebind) to the newest port. A new transfer supersedes any prior one.
     port.onmessage = async (msgEvent) => {
       const message = msgEvent.data;
       if (!message || !message.requestId) return;
@@ -45,8 +56,7 @@
     port.start();
   });
 
-  // Announce readiness so the content script transfers the port promptly (and we
-  // don't rely on its fallback timer).
+  // Announce readiness so the content script transfers the port promptly.
   window.postMessage({ source: PAGE_READY }, window.location.origin);
 
   async function handleRequest(message) {
