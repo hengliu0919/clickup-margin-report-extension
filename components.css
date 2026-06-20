@@ -463,6 +463,54 @@ tr:hover td {
   margin-bottom: var(--space-4);
 }
 
+/* Tabs — one canonical component shared by the dashboard nav and the
+   report breakdown switcher. */
+.tabs {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.tab {
+  padding: var(--space-2) var(--space-4);
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-secondary);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.tab:hover {
+  color: var(--text-primary);
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--brand-500);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.tab[aria-selected="true"],
+.tab.tab-active {
+  color: var(--text-primary);
+  border-bottom-color: var(--brand-500);
+}
+
+/* A row flagged for attention (below target margin / over budget). */
+.row-flag td {
+  background: var(--danger-50);
+}
+
+/* Spacing utilities (margin top/bottom on the 4px scale). */
+.mt-2 { margin-top: var(--space-2); }
+.mt-3 { margin-top: var(--space-3); }
+.mt-4 { margin-top: var(--space-4); }
+.mb-3 { margin-bottom: var(--space-3); }
+.mb-4 { margin-bottom: var(--space-4); }
+
 /* Responsive utilities */
 @media (max-width: 640px) {
   body {

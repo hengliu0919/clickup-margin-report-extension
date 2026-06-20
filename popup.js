@@ -1,5 +1,6 @@
 import { buildMarginReport, formatMoney, formatPercent, parseRateTables } from "./src/margin.js";
 import { loadSettings, openOptionsPage } from "./src/storage.js";
+import { getClickUpTab, sendToClickUpTab } from "./src/clickup-tab.js";
 
 const elements = {
   openOptions: document.querySelector("#openOptions"),
@@ -11,7 +12,7 @@ const elements = {
   statusText: document.querySelector("#statusText"),
   quickMetrics: document.querySelector("#quickMetrics"),
   warningBadge: document.querySelector("#warningBadge"),
-  warningCount: document.querySelector("#warningCount"),
+  warningBadgeText: document.querySelector("#warningBadgeText"),
   revenue: document.querySelector("#revenue"),
   margin: document.querySelector("#margin"),
 };
@@ -26,7 +27,7 @@ elements.viewReport.addEventListener("click", viewReport);
 function renderInitialState() {
   elements.rangeLabel.textContent = `${settings.lookbackDays || 14}-day lookback`;
   if (typeof chrome === "undefined" || !chrome.tabs) return;
-  getActiveClickUpTab().then((tab) => {
+  getClickUpTab({ preferActive: true }).then((tab) => {
     renderTabState(Boolean(tab));
   });
 }
@@ -37,7 +38,7 @@ async function runReport() {
 
   try {
     settings = await loadSettings();
-    const tab = await getActiveClickUpTab();
+    const tab = await getClickUpTab({ preferActive: true });
     if (!tab) {
       setStatus("Open ClickUp workspace", "error");
       return;
@@ -46,35 +47,32 @@ async function runReport() {
     setStatus("Loading...", "active");
     const data = await sendToClickUpTab(tab.id, "GET_MARGIN_DATA", {
       lookbackDays: settings.lookbackDays,
-    });
+    }, { onStatus: (m) => setStatus(m, "active") });
 
     setStatus("Calculating...", "active");
-    const tasksById = new Map(data.entries.map((entry) => [entry.task?.id, entry.task]).filter(([taskId]) => taskId));
+    const tasksById = new Map(
+      data.entries.map((entry) => [entry.task?.id, entry.task]).filter(([taskId]) => taskId)
+    );
     const { peopleRates, projectRates } = parseRateTables(settings);
     const report = buildMarginReport({ entries: data.entries, tasksById, peopleRates, projectRates });
-
-    // Store report in sessionStorage for report page
     report.apiErrors = data.errors || [];
-    sessionStorage.setItem(
-      "clickup-margin-report-data",
-      JSON.stringify({ report, timestamp: Date.now() })
-    );
 
-    // Show quick summary
+    // Quick glance only — the full report lives in the dashboard, which re-fetches.
     displayQuickSummary(report);
     setStatus("Report ready", "success");
   } catch (error) {
     const friendly = friendlyError(error);
     setStatus(friendly.message, friendly.type);
   } finally {
-    const tab = await getActiveClickUpTab();
+    const tab = await getClickUpTab({ preferActive: true });
     elements.runReport.disabled = !tab;
     elements.runReport.textContent = "Run Report";
   }
 }
 
 function displayQuickSummary(report) {
-  elements.revenue.textContent = formatMoney(report.totals.revenue);
+  const currency = report.currency || "USD";
+  elements.revenue.textContent = formatMoney(report.totals.revenue, currency);
   elements.margin.textContent = formatPercent(report.totals.margin);
   elements.quickMetrics.classList.remove("hidden");
   elements.viewReport.classList.remove("hidden");
@@ -84,10 +82,12 @@ function displayQuickSummary(report) {
     report.missing.peopleRates.length +
     report.missing.projectRates.length +
     report.missing.taskLocation.length +
-    (report.apiErrors?.length || 0);
+    (report.apiErrors?.length || 0) +
+    (report.alerts?.belowTarget?.length || 0) +
+    (report.alerts?.overBudget?.length || 0);
 
   if (warningCount > 0) {
-    elements.warningCount.textContent = warningCount;
+    elements.warningBadgeText.textContent = `${warningCount} ${warningCount === 1 ? "warning" : "warnings"}`;
     elements.warningBadge.classList.remove("hidden");
   } else {
     elements.warningBadge.classList.add("hidden");
@@ -95,7 +95,7 @@ function displayQuickSummary(report) {
 }
 
 function viewReport() {
-  chrome.tabs.create({ url: "report.html" });
+  chrome.tabs.create({ url: "dashboard.html" });
 }
 
 function setStatus(message, type = "") {
@@ -130,49 +130,4 @@ function friendlyError(error) {
     type: "error",
     message: message || "Report failed",
   };
-}
-
-async function getActiveClickUpTab() {
-  if (typeof chrome === "undefined" || !chrome.tabs) return null;
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  return tab?.url?.startsWith("https://app.clickup.com/") ? tab : null;
-}
-
-async function sendToClickUpTab(tabId, type, payload = {}) {
-  const message = {
-    target: "clickup-margin-report-content",
-    type,
-    payload,
-  };
-
-  let response;
-  try {
-    response = await chrome.tabs.sendMessage(tabId, message);
-  } catch (error) {
-    if (!isMissingReceiverError(error)) throw error;
-    setStatus("Connecting...");
-    await injectContentScript(tabId);
-    response = await chrome.tabs.sendMessage(tabId, message);
-  }
-
-  if (!response?.ok) {
-    throw new Error(response?.error || "Could not read ClickUp data");
-  }
-
-  return response.result;
-}
-
-async function injectContentScript(tabId) {
-  if (!chrome.scripting?.executeScript) {
-    throw new Error("Reload ClickUp tab");
-  }
-
-  await chrome.scripting.executeScript({
-    target: { tabId },
-    files: ["content-script.js"],
-  });
-}
-
-function isMissingReceiverError(error) {
-  return /Receiving end does not exist|Could not establish connection/i.test(error?.message || "");
 }

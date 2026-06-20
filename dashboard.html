@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ClickUp Margin Report</title>
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      /* Page-level layout only; visual tokens live in the design system. */
+      .dash-tabs {
+        margin-bottom: var(--space-4);
+        border-bottom: 1px solid var(--border-primary);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="options-app">
+      <div class="topbar">
+        <div class="topbar-title">
+          <p class="eyebrow">ClickUp</p>
+          <h1>Margin Report</h1>
+          <p id="connStatus" class="status-text">Checking ClickUp connection…</p>
+        </div>
+        <div class="topbar-actions">
+          <button id="refreshBtn" type="button" class="btn btn-primary">Refresh data</button>
+        </div>
+      </div>
+
+      <div class="tabs dash-tabs" role="tablist" aria-label="Dashboard sections">
+        <button class="tab tab-active" role="tab" aria-selected="true" aria-controls="tab-report" data-tab="report" type="button">Report</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="tab-rates" data-tab="rates" type="button">Rates</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="tab-settings" data-tab="settings" type="button">Settings</button>
+      </div>
+
+      <div id="globalStatus" class="status-text mb-3"></div>
+
+      <section id="tab-report" role="tabpanel" class="dash-panel"></section>
+      <section id="tab-rates" role="tabpanel" class="dash-panel hidden"></section>
+      <section id="tab-settings" role="tabpanel" class="dash-panel hidden">
+        <div class="card">
+          <div class="section-heading">
+            <div class="section-heading-content">
+              <h2>Rate Book Storage</h2>
+              <p>Private people rates and project billing settings live in this Chrome profile.</p>
+            </div>
+            <div class="section-heading-actions"><span class="badge badge-success">This browser active</span></div>
+          </div>
+          <div id="storageSummary" class="storage-summary"></div>
+          <p class="status-text mt-3">
+            <code>chrome.storage.local</code> is not encrypted at rest. Use <strong>Clear all rates</strong> (Rates tab) before sharing a device.
+          </p>
+        </div>
+        <div class="card">
+          <h2>About</h2>
+          <p>Reads your active ClickUp session to calculate revenue, cost, gross profit, margin, and budget burn from existing time entries. Cost ownership is keyed on <code>time_entry.user.id</code>.</p>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="dashboard.js"></script>
+  </body>
+</html>

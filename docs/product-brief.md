@@ -23,11 +23,11 @@ Already tracking time in ClickUp? Add private rates, margins, budget burn, and i
 - Recent Reddit complaints ask for planned vs actuals, resource cost, profitability, client-hour allocation, and less manual setup.
 - Competitors such as Everhour, My Hours, Harvest, Toggl, Clockify, and TimeCamp validate demand, but most push teams into another time system.
 
-Source docs in the idea repo:
+Source docs are kept in a separate private idea/research repo:
 
-- `/Users/hengliu/Documents/ideas/ideas/clickup-billable-rates-cost-rates-layer.md`
-- `/Users/hengliu/Documents/ideas/research/clickup-margin-report-validation.md`
-- `/Users/hengliu/Documents/ideas/research/clickup-billable-hours-integration-competitors.md`
+- `clickup-billable-rates-cost-rates-layer.md`
+- `clickup-margin-report-validation.md`
+- `clickup-billable-hours-integration-competitors.md`
 
 ## MVP Wedge
 

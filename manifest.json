@@ -16,9 +16,12 @@
       "48": "icons/icon-48.png"
     }
   },
-  "options_page": "options.html",
+  "options_page": "dashboard.html",
   "permissions": ["activeTab", "scripting", "storage", "tabs"],
   "host_permissions": ["https://app.clickup.com/*"],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
   "content_scripts": [
     {
       "matches": ["https://app.clickup.com/*"],

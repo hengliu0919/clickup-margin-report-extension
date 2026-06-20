@@ -24,6 +24,14 @@
   margin-top: var(--space-4);
 }
 
+/* Vertical rhythm inside a dashboard tab panel: each section's direct children
+   (cards, alerts) get consistent spacing, matching the top-level flow. Without
+   this, stacked cards inside a tab panel would touch (the .options-app flow rule
+   stops at the section boundary). */
+.dash-panel > * + * {
+  margin-top: var(--space-4);
+}
+
 /* Topbar */
 .topbar {
   display: flex;
@@ -76,7 +84,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  min-height: 24px;
+  min-height: var(--space-6);
 }
 
 .status-text {
@@ -319,7 +327,7 @@
 .editable-table input:not([type="checkbox"]):focus {
   background: var(--bg-secondary);
   border-color: var(--brand-500);
-  box-shadow: 0 0 0 2px var(--brand-50);
+  box-shadow: 0 0 0 3px var(--brand-50);
 }
 
 .editable-table td:nth-child(2) {

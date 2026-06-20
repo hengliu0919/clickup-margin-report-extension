@@ -66,10 +66,18 @@ const defaultProjectRates = [
   },
 ];
 
-export const defaultSettings = {
+// Demo tables are opt-in (the "Load demo data" button), not the first-run default,
+// so a real user starts from a clean slate instead of deleting Acme/Demo Admin rows.
+export const demoSettings = {
   lookbackDays: 14,
   peopleRates: defaultPeopleRates,
   projectRates: defaultProjectRates,
+};
+
+export const defaultSettings = {
+  lookbackDays: 14,
+  peopleRates: [],
+  projectRates: [],
 };
 
 const hasChromeStorage = () =>
@@ -103,7 +111,7 @@ export function openOptionsPage() {
     return;
   }
 
-  window.location.href = "options.html";
+  window.location.href = "dashboard.html";
 }
 
 function normalizeSettings(settings) {
@@ -115,8 +123,10 @@ function normalizeSettings(settings) {
 }
 
 function normalizePeopleRates(rows, legacyCsv) {
-  const sourceRows = Array.isArray(rows) && rows.length ? rows : peopleRowsFromCsv(legacyCsv);
-  return (sourceRows.length ? sourceRows : defaultPeopleRates).map((row) => ({
+  // Prefer explicit rows; fall back to legacy CSV for older installs; otherwise
+  // empty. No demo seeding here — that's opt-in via demoSettings.
+  const sourceRows = Array.isArray(rows) ? rows : peopleRowsFromCsv(legacyCsv);
+  return sourceRows.map((row) => ({
     clickup_user_id: string(row.clickup_user_id),
     display_name: string(row.display_name || row.username),
     role: string(row.role),
@@ -128,8 +138,8 @@ function normalizePeopleRates(rows, legacyCsv) {
 }
 
 function normalizeProjectRates(rows, legacyCsv) {
-  const sourceRows = Array.isArray(rows) && rows.length ? rows : projectRowsFromCsv(legacyCsv);
-  return (sourceRows.length ? sourceRows : defaultProjectRates).map((row) => ({
+  const sourceRows = Array.isArray(rows) ? rows : projectRowsFromCsv(legacyCsv);
+  return sourceRows.map((row) => ({
     scope_type: string(row.scope_type || "list"),
     scope_id: string(row.scope_id || row.clickup_list_id),
     scope_name: string(row.scope_name),

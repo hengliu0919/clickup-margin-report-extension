@@ -58,11 +58,13 @@
 
   --brand-50: #eef2ff;
   --brand-100: #e0e7ff;
+  --brand-300: #a5b4fc;
   --brand-500: #4f46e5;
   --brand-600: #4338ca;
   --brand-700: #3730a3;
 
   --danger-50: #fef2f2;
+  --danger-100: #fee2e2;
   --danger-500: #ef4444;
   --danger-600: #dc2626;
   --danger-700: #b91c1c;
@@ -105,6 +107,21 @@
 
     --border-primary: #374151;
     --border-secondary: #4b5563;
+
+    /* Tinted surfaces (used as alert / flagged-row / focus-ring backgrounds).
+       The light-mode "-50/-100" tints are near-white and become invisible on a
+       dark page, so remap them to muted dark-tinted surfaces here. The "-500/600/700"
+       hues stay for text/borders, which read fine on dark. */
+    --brand-50: #1e1b4b;
+    --brand-100: #312e81;
+    --danger-50: #3a1d1d;
+    --danger-100: #4c1d1d;
+    --warning-50: #3a2e12;
+    --warning-100: #4a3a14;
+    --success-50: #12331f;
+    --success-100: #154029;
+    --info-50: #0c2a3d;
+    --info-100: #0f3a52;
 
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);

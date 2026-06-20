@@ -1,82 +1,98 @@
 import fs from "node:fs";
 import { execFileSync } from "node:child_process";
-import { parseRateTables, buildMarginReport } from "../src/margin.js";
 
 const root = new URL("../", import.meta.url);
 const jsFiles = [
   "content-script.js",
-  "options.js",
+  "dashboard.js",
   "page-bridge.js",
   "popup.js",
-  "report.js",
+  "src/clickup-tab.js",
   "src/csv.js",
+  "src/dom.js",
   "src/margin.js",
+  "src/rates-view.js",
+  "src/report-view.js",
   "src/storage.js",
   "scripts/check.mjs",
+  "scripts/design-lint.mjs",
 ];
 
+// 1. Syntax check every script.
 for (const file of jsFiles) {
   execFileSync(process.execPath, ["--check", new URL(file, root).pathname], { stdio: "inherit" });
 }
 
-JSON.parse(fs.readFileSync(new URL("manifest.json", root), "utf8"));
-
-const optionsHtml = fs.readFileSync(new URL("options.html", root), "utf8");
-for (const expected of [
-  "Rate Book Storage",
-  "Advanced import/export",
-  "Refresh ClickUp users/projects",
-]) {
-  if (!optionsHtml.includes(expected)) {
-    throw new Error(`Options UX is missing "${expected}"`);
-  }
+// 2. Manifest is valid JSON and declares the expected hardening.
+// Note: the "tabs" permission is required — the dashboard resolves the ClickUp
+// tab via chrome.tabs.query({url}), which returns nothing (and hides tab URLs)
+// without it. Verified by browser QA. See git history for the attempt to drop it.
+const manifest = JSON.parse(fs.readFileSync(new URL("manifest.json", root), "utf8"));
+if (!manifest.permissions?.includes("tabs")) {
+  throw new Error('manifest must request "tabs" — chrome.tabs.query({url}) needs it to find the ClickUp tab');
 }
-if (optionsHtml.includes("Google Sheet")) {
-  throw new Error("Publish UX should not expose Google Sheet storage yet");
+if (!manifest.content_security_policy?.extension_pages) {
+  throw new Error("manifest should declare an explicit extension_pages CSP");
 }
-
-const popupHtml = fs.readFileSync(new URL("popup.html", root), "utf8");
-for (const expected of [
-  "Run Report",
-  "viewReport",
-  "Open ClickUp",
-]) {
-  if (!popupHtml.includes(expected)) {
-    throw new Error(`Popup UX is missing "${expected}"`);
-  }
+if (manifest.options_page !== "dashboard.html") {
+  throw new Error("manifest options_page should be dashboard.html");
 }
 
-const reportHtml = fs.readFileSync(new URL("report.html", root), "utf8");
-for (const expected of [
-  "Project Breakdown",
-  "Export CSV",
-  "Refresh",
-]) {
-  if (!reportHtml.includes(expected)) {
-    throw new Error(`Report page is missing "${expected}"`);
-  }
-}
-
-const peopleRatesCsv = fs.readFileSync(new URL("sample-data/people-rates.csv", root), "utf8");
-const projectRatesCsv = fs.readFileSync(new URL("sample-data/project-rates.csv", root), "utf8");
-const { peopleRates, projectRates } = parseRateTables({ peopleRatesCsv, projectRatesCsv });
-const entries = [
-  {
-    id: "e1",
-    duration: 2 * 60 * 60 * 1000,
-    billable: true,
-    start: Date.now(),
-    user: { id: 216168243, username: "Marco" },
-    task: { id: "t1", name: "Homepage design" },
-  },
-];
-const tasksById = new Map([
-  ["t1", { id: "t1", name: "Homepage design", list: { id: "901417274458", name: "Client - Acme" } }],
+// 3. HTML markers the UI depends on.
+assertHtml("dashboard.html", [
+  'data-tab="report"',
+  'data-tab="rates"',
+  'data-tab="settings"',
+  'id="tab-report"',
+  'id="refreshBtn"',
+  'src="dashboard.js"',
 ]);
-const report = buildMarginReport({ entries, tasksById, peopleRates, projectRates });
+const dashboardHtml = fs.readFileSync(new URL("dashboard.html", root), "utf8");
+if (dashboardHtml.includes("Google Sheet")) {
+  throw new Error("UX should not expose Google Sheet storage yet");
+}
 
-if (report.totals.revenue !== 300 || report.totals.cost !== 110) {
-  throw new Error(`Unexpected smoke-test totals: ${JSON.stringify(report.totals)}`);
+assertHtml("popup.html", ["Run Report", "viewReport", "Open ClickUp", "Open dashboard"]);
+
+// View modules carry the report/rates markup now (built as innerHTML strings).
+assertSource("src/report-view.js", ["By project", "By person", "By task", "Client invoice", "Utilization"]);
+assertSource("src/rates-view.js", ["People Rates", "Project Rates", "Refresh ClickUp users/projects", "Clear all rates"]);
+
+function assertHtml(file, markers) {
+  const html = fs.readFileSync(new URL(file, root), "utf8");
+  for (const marker of markers) {
+    if (!html.includes(marker)) throw new Error(`${file} is missing "${marker}"`);
+  }
+}
+
+function assertSource(file, markers) {
+  const src = fs.readFileSync(new URL(file, root), "utf8");
+  for (const marker of markers) {
+    if (!src.includes(marker)) throw new Error(`${file} is missing "${marker}"`);
+  }
+}
+
+// 4a. Design-system lint — fail on hardcoded colors, undefined classes, inline styles.
+execFileSync(process.execPath, [new URL("scripts/design-lint.mjs", root).pathname], { stdio: "inherit" });
+
+// 4. Run the unit + integration tests (node:test).
+const testFiles = ["scripts/margin.test.mjs", "scripts/csv.test.mjs", "scripts/storage.test.mjs"].map(
+  (file) => new URL(file, root).pathname
+);
+execFileSync(process.execPath, ["--test", ...testFiles], { stdio: "inherit" });
+
+// 5. Optional static type check via JSDoc + tsc, if locally installed. Kept
+// zero-dependency by default: only runs when ./node_modules has a real tsc, so
+// PATH stubs or a missing install simply skip (never fail) the build.
+const localTsc = new URL("node_modules/typescript/bin/tsc", root).pathname;
+if (fs.existsSync(localTsc)) {
+  execFileSync(process.execPath, [localTsc, "-p", "jsconfig.json", "--noEmit"], {
+    stdio: "inherit",
+    cwd: new URL(".", root).pathname,
+  });
+  console.log("type check passed");
+} else {
+  console.log("type check skipped (install typescript locally to enable: npm i -D typescript)");
 }
 
 console.log("extension checks passed");

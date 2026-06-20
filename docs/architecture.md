@@ -2,15 +2,19 @@
 
 ## Current Prototype
 
-This is a Manifest V3 Chrome extension with no build step.
+This is a Manifest V3 Chrome extension with no build step (plain ES modules).
 
 - `manifest.json`: extension permissions and entry points.
-- `popup.html` / `popup.js`: report generation and CSV export.
-- `options.html` / `options.js`: report window, people rates, project rates.
-- `content-script.js`: relays popup requests into the active ClickUp page.
-- `page-bridge.js`: runs in the ClickUp page context, reuses the logged-in session, and calls ClickUp internal APIs.
-- `src/margin.js`: pure margin calculation.
-- `src/csv.js`: CSV parsing/export helpers.
+- `popup.html` / `popup.js`: slim launcher — connection status, a quick revenue/margin glance, and a button to open the dashboard.
+- `dashboard.html` / `dashboard.js`: the main app. One tabbed page (Report / Rates / Settings) that fetches ClickUp data once, caches it, and recomputes the report instantly when a rate is edited (no re-fetch). Also the `options_page`.
+- `src/report-view.js`: renders a computed report (summary, alerts, coverage, per-project/person/task breakdown, CSV/invoice exports).
+- `src/rates-view.js`: editable people/project rate tables, validation, ClickUp import, CSV/JSON import-export, demo/clear.
+- `content-script.js`: relays dashboard/popup requests into the active ClickUp page over a private MessagePort handshake.
+- `page-bridge.js`: runs in the ClickUp page context, reuses the logged-in session, and calls ClickUp internal APIs (paginated, retried, concurrency-bounded).
+- `src/margin.js`: pure margin calculation (revenue/cost/margin, utilization, effective rate, alerts).
+- `src/clickup-tab.js`: shared ClickUp-tab resolution + content-script messaging.
+- `src/csv.js`: CSV parsing/export helpers (with formula-injection guard).
+- `src/dom.js`: shared escaping/date helpers.
 - `src/storage.js`: browser-local storage wrapper using Chrome extension storage with localStorage fallback for browser preview.
 
 ## Data Flow

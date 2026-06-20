@@ -48,12 +48,22 @@ export function parseCsv(text) {
   );
 }
 
+// Spreadsheet formula injection: a cell that begins with = + - @ (or a control
+// char that some apps strip back to one) is executed as a formula on open. We
+// carry confidential cost/bill rates and ClickUp-controlled task/list names into
+// CSV, so neutralize any such cell by prefixing a single quote before quoting.
+const FORMULA_TRIGGER = /^[=+\-@\t\r]/;
+
+function neutralizeFormula(text) {
+  return FORMULA_TRIGGER.test(text) ? `'${text}` : text;
+}
+
 export function toCsv(rows) {
   if (!rows.length) return "";
 
   const headers = Object.keys(rows[0]);
   const escape = (value) => {
-    const text = value == null ? "" : String(value);
+    const text = neutralizeFormula(value == null ? "" : String(value));
     return /[",\n\r]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
   };
 

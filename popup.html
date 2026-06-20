@@ -16,8 +16,8 @@
         margin-bottom: var(--space-4);
       }
       .popup-icon {
-        width: 40px;
-        height: 40px;
+        width: var(--space-10);
+        height: var(--space-10);
         border-radius: var(--radius-md);
       }
       .popup-header-text { flex: 1; }
@@ -38,9 +38,9 @@
         color: var(--text-secondary);
       }
       .popup-status-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
+        width: var(--space-2);
+        height: var(--space-2);
+        border-radius: var(--radius-full);
         background: var(--success-500);
       }
       .popup-status-dot.inactive { background: var(--text-tertiary); }
@@ -78,14 +78,14 @@
 
       <div id="statusSection">
         <div class="popup-status">
-          <span id="statusDot" class="popup-status-dot"></span>
+          <span id="statusDot" class="popup-status-dot" aria-hidden="true"></span>
           <span id="statusText">Connected to ClickUp</span>
         </div>
       </div>
 
       <div class="popup-actions">
         <button id="runReport" type="button" class="btn btn-primary">Run Report</button>
-        <button id="viewReport" type="button" class="btn btn-secondary hidden">View</button>
+        <button id="viewReport" type="button" class="btn btn-secondary">Open dashboard ↗</button>
       </div>
 
       <div id="quickMetrics" class="quick-metrics hidden">
@@ -99,10 +99,8 @@
         </div>
       </div>
 
-      <div id="warningBadge" class="hidden" style="margin-top: var(--space-3);">
-        <span class="badge badge-warning">
-          <span id="warningCount">0</span> warnings
-        </span>
+      <div id="warningBadge" class="hidden">
+        <span id="warningBadgeText" class="badge badge-warning">0 warnings</span>
       </div>
     </main>
 

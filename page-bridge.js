@@ -2,24 +2,52 @@
   if (window.__clickupMarginReportBridge) return;
   window.__clickupMarginReportBridge = true;
 
-  const source = "clickup-margin-report-page";
-  const requestSource = "clickup-margin-report-content";
+  const PAGE_READY = "clickup-margin-report-page-ready";
+  const CONTENT_INIT = "clickup-margin-report-content-init";
+  // Internal ClickUp endpoints, centralized so an API change is a one-line edit.
   const frontdoorBase = "https://frontdoor-prod-us-east-2-2.clickup.com";
   const identityBase = "https://id.app.clickup.com";
+  const PAGE_COUNT = 100;
+  const MAX_PAGES = 50; // safety bound on the pagination loop (5000 tasks/user-week)
+  const MAX_CONCURRENCY = 5; // bound the user-week fan-out to avoid rate limiting
+  const MAX_RETRIES = 3;
+  const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
   const tokenCache = new Map();
 
-  window.addEventListener("message", async (event) => {
+  // Accept exactly one private MessagePort from the content script. All requests
+  // and replies flow over this port; we never service requests from generic
+  // window messages, so page-world JS cannot drive the bridge or read the token.
+  let connected = false;
+  window.addEventListener("message", (event) => {
     if (event.source !== window) return;
-    const message = event.data;
-    if (!message || message.source !== requestSource) return;
+    if (event.data?.source !== CONTENT_INIT) return;
+    const [port] = event.ports || [];
+    if (!port || connected) return;
+    connected = true;
 
-    try {
-      const result = await handleRequest(message);
-      window.postMessage({ source, requestId: message.requestId, ok: true, result }, window.location.origin);
-    } catch (error) {
-      window.postMessage({ source, requestId: message.requestId, ok: false, error: error.message }, window.location.origin);
-    }
+    port.onmessage = async (msgEvent) => {
+      const message = msgEvent.data;
+      if (!message || !message.requestId) return;
+
+      // Handshake/health check from the content script.
+      if (message.type === "PING") {
+        port.postMessage({ requestId: message.requestId, ok: true, result: "pong" });
+        return;
+      }
+
+      try {
+        const result = await handleRequest(message);
+        port.postMessage({ requestId: message.requestId, ok: true, result });
+      } catch (error) {
+        port.postMessage({ requestId: message.requestId, ok: false, error: error.message });
+      }
+    };
+    port.start();
   });
+
+  // Announce readiness so the content script transfers the port promptly (and we
+  // don't rely on its fallback timer).
+  window.postMessage({ source: PAGE_READY }, window.location.origin);
 
   async function handleRequest(message) {
     if (message.type === "GET_CONTEXT") {
@@ -44,56 +72,145 @@
     return workspaceId;
   }
 
-  async function getAccessToken(workspaceId) {
+  async function getAccessToken(workspaceId, { force = false } = {}) {
     const cached = tokenCache.get(workspaceId);
     const nowSeconds = Math.floor(Date.now() / 1000);
-    if (cached && cached.expiration - 60 > nowSeconds) return cached.token;
+    if (!force && cached && cached.expiration - 60 > nowSeconds) return cached.token;
 
     const triggerSource = encodeURIComponent(`${frontdoorBase}/user/v1/user`);
-    const res = await fetch(`${identityBase}/data/v3/workspaces/${workspaceId}/authentication/access_tokens?trigger_source=${triggerSource}`, {
-      method: "POST",
-      credentials: "include",
-    });
+    const url = `${identityBase}/data/v3/workspaces/${workspaceId}/authentication/access_tokens?trigger_source=${triggerSource}`;
+    const res = await fetchWithRetry(url, { method: "POST", credentials: "include" });
     const body = await parseJson(res);
     if (!res.ok || !body.token) {
       throw new Error(body.err || body.message || "Could not get ClickUp session token. Reload ClickUp and try again.");
     }
 
-    tokenCache.set(workspaceId, { token: body.token, expiration: body.expiration || nowSeconds + 300 });
+    tokenCache.set(workspaceId, { token: body.token, expiration: normalizeExpiration(body.expiration, nowSeconds) });
     return body.token;
   }
 
-  async function frontdoor(workspaceId, path) {
+  async function frontdoor(workspaceId, path, { allowReauth = true } = {}) {
     const token = await getAccessToken(workspaceId);
-    const res = await fetch(`${frontdoorBase}${path}`, {
+    const res = await fetchWithRetry(`${frontdoorBase}${path}`, {
       credentials: "include",
       headers: { Authorization: `Bearer ${token}` },
     });
+
+    // A 401 usually means the minted token expired mid-run; evict and re-exchange once.
+    if (res.status === 401 && allowReauth) {
+      tokenCache.delete(workspaceId);
+      await getAccessToken(workspaceId, { force: true });
+      return frontdoor(workspaceId, path, { allowReauth: false });
+    }
+
     const body = await parseJson(res);
     if (!res.ok) {
+      if (body.raw && /<(!doctype|html)/i.test(body.raw)) {
+        throw new Error(`ClickUp returned a non-JSON response for ${path} (status ${res.status}). Your session may have expired — reload ClickUp and try again.`);
+      }
       throw new Error(body.err || body.message || `${path} failed with ${res.status}`);
     }
     return body;
   }
 
+  async function fetchWithRetry(url, options) {
+    let lastError;
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+      try {
+        const res = await fetch(url, options);
+        if (RETRYABLE_STATUS.has(res.status) && attempt < MAX_RETRIES) {
+          await sleep(backoffMs(attempt, res.headers.get("retry-after")));
+          continue;
+        }
+        return res;
+      } catch (error) {
+        lastError = error;
+        if (attempt < MAX_RETRIES) {
+          await sleep(backoffMs(attempt, null));
+          continue;
+        }
+        throw error;
+      }
+    }
+    throw lastError || new Error("Request failed after retries.");
+  }
+
+  function backoffMs(attempt, retryAfterHeader) {
+    const retryAfter = Number(retryAfterHeader);
+    if (Number.isFinite(retryAfter) && retryAfter > 0) return Math.min(retryAfter * 1000, 10000);
+    const base = 400 * 2 ** attempt; // 400, 800, 1600...
+    const jitter = base * 0.25 * pseudoRandom(attempt);
+    return Math.min(base + jitter, 10000);
+  }
+
+  // Deterministic-ish jitter without Math.random (avoids surprises and is fine here).
+  function pseudoRandom(seed) {
+    const x = Math.sin((seed + 1) * 99991) * 10000;
+    return Math.abs(x - Math.floor(x));
+  }
+
+  function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  function normalizeExpiration(expiration, nowSeconds) {
+    const value = Number(expiration);
+    if (!Number.isFinite(value) || value <= 0) return nowSeconds + 300;
+    // Some endpoints return ms epochs; collapse to seconds if it looks like ms.
+    const seconds = value > 1e12 ? Math.floor(value / 1000) : value;
+    // If it's a TTL (small) rather than an absolute epoch, treat as relative.
+    return seconds < nowSeconds ? nowSeconds + seconds : seconds;
+  }
+
+  // Run async work over `items` with at most `limit` in flight at once.
+  async function runPool(items, limit, worker) {
+    const queue = [...items];
+    const runners = Array.from({ length: Math.min(limit, queue.length) }, async () => {
+      while (queue.length) {
+        const item = queue.shift();
+        await worker(item);
+      }
+    });
+    await Promise.all(runners);
+  }
+
   async function getMarginData({ workspaceId, lookbackDays }) {
     const users = await getWorkspaceUsers(workspaceId);
     const weekStarts = getWeekStarts(lookbackDays);
+    const range = getRange(lookbackDays);
     const entries = [];
     const errors = [];
+    let truncatedWeeks = 0;
+    // Expected vs succeeded user-week slices, so the UI can show coverage and the
+    // report can be flagged "partial" instead of looking confidently complete.
+    const expectedSlices = users.length * weekStarts.length;
+    let completedSlices = 0;
 
-    await Promise.all(
-      users.map(async (user) => {
-        for (const startOfWeek of weekStarts) {
-          try {
-            const body = await getTimesheetTasks({ workspaceId, userId: user.id, startOfWeek });
-            entries.push(...timesheetTasksToEntries({ tasks: body.timesheet?.tasks || [], user }));
-          } catch (error) {
-            errors.push({ assigneeId: user.id, message: error.message });
-          }
-        }
-      })
-    );
+    // Warm the token once before the fan-out so N users don't each race to mint it.
+    await getAccessToken(workspaceId);
+
+    const tasks = [];
+    for (const user of users) {
+      for (const startOfWeek of weekStarts) {
+        tasks.push({ user, startOfWeek });
+      }
+    }
+
+    await runPool(tasks, MAX_CONCURRENCY, async ({ user, startOfWeek }) => {
+      try {
+        const { rows, truncated } = await getTimesheetEntries({
+          workspaceId,
+          user,
+          startOfWeek,
+          range,
+        });
+        entries.push(...rows);
+        if (truncated) truncatedWeeks += 1;
+        completedSlices += 1;
+      } catch (error) {
+        errors.push({ assigneeId: user.id, week: startOfWeek, message: error.message });
+      }
+    });
 
     return {
       workspaceId,
@@ -101,6 +218,8 @@
       entries,
       errors,
       weekStarts,
+      range,
+      coverage: { expectedSlices, completedSlices, truncatedWeeks },
     };
   }
 
@@ -117,10 +236,35 @@
       .filter(Boolean);
   }
 
-  async function getTimesheetTasks({ workspaceId, userId, startOfWeek }) {
+  async function getTimesheetEntries({ workspaceId, user, startOfWeek, range }) {
+    const rows = [];
+    let truncated = false;
+    let page = 0;
+
+    // The timesheet endpoint is paged; without looping, users with more than
+    // page_count distinct tasks in a week silently lose everything past page 1.
+    for (; page < MAX_PAGES; page += 1) {
+      const body = await getTimesheetTasks({ workspaceId, userId: user.id, startOfWeek, page });
+      const tasks = body.timesheet?.tasks || [];
+      rows.push(...timesheetTasksToEntries({ tasks, user, range }));
+
+      const hasMore =
+        body.timesheet?.has_more ??
+        body.has_more ??
+        (body.timesheet?.last_page === false) ??
+        (tasks.length >= PAGE_COUNT);
+      if (!hasMore) break;
+      if (page === MAX_PAGES - 1) truncated = true;
+    }
+
+    return { rows, truncated };
+  }
+
+  async function getTimesheetTasks({ workspaceId, userId, startOfWeek, page = 0 }) {
     const params = new URLSearchParams({
       team_id: workspaceId,
-      page_count: "100",
+      page_count: String(PAGE_COUNT),
+      page: String(page),
       start_of_week: String(startOfWeek),
       timezone: "viewer",
       week_start_day: "viewer",
@@ -130,11 +274,17 @@
     return frontdoor(workspaceId, `/time-hub-service-v1/workspace/${workspaceId}/timesheet/tasks?${params.toString()}`);
   }
 
-  function timesheetTasksToEntries({ tasks, user }) {
+  function timesheetTasksToEntries({ tasks, user, range }) {
     const rows = [];
 
     for (const task of tasks) {
       for (const day of task.days || []) {
+        // Weeks are fetched whole (week-granular API), but the lookback window can
+        // start/end mid-week. Drop days outside [range.startMs, range.endMs] so a
+        // "14-day" report doesn't silently sum the rest of the bounding weeks.
+        const dayStart = Number(day.start_of_day || 0);
+        if (range && (dayStart < range.startMs || dayStart > range.endMs)) continue;
+
         const calculations = day.calculations || {};
         const billable = Number(calculations.total_time_tracked_billable || 0);
         const nonBillable = Number(calculations.total_time_tracked_non_billable || 0);
@@ -173,6 +323,28 @@
       weeks.push(cursor.getTime());
     }
     return weeks;
+  }
+
+  // The actual [start, end] window the user asked for (local day boundaries).
+  // Day buckets outside this are dropped even though whole weeks are fetched.
+  function getRange(lookbackDays) {
+    const startDate = startOfLocalDay(new Date());
+    startDate.setDate(startDate.getDate() - lookbackDays);
+    const endDate = startOfLocalDay(new Date());
+    endDate.setHours(23, 59, 59, 999);
+    return {
+      startMs: startDate.getTime(),
+      endMs: endDate.getTime(),
+      startLabel: localDateLabel(startDate),
+      endLabel: localDateLabel(endDate),
+    };
+  }
+
+  function localDateLabel(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   }
 
   function startOfWeek(date) {

@@ -20,11 +20,7 @@ This prototype proves the ClickUp/time-entry/margin loop with local private rate
 1. Open `chrome://extensions`.
 2. Enable `Developer mode`.
 3. Click `Load unpacked`.
-4. Select this folder:
-
-```text
-/Users/hengliu/Documents/projects/clickup-margin-report-extension
-```
+4. Select this project's root folder (the directory containing `manifest.json`).
 
 ## Configure
 
@@ -52,8 +48,15 @@ After the rate tables are valid enough, open the extension popup from a ClickUp 
 ## Check
 
 ```bash
-npm run check
+npm run check    # syntax check, manifest/HTML invariants, unit tests, optional type check
+npm test         # unit tests only (node:test)
+npm run typecheck # JSDoc + tsc --noEmit over src/ (requires `npm i` first)
 ```
+
+The check runs `node --test` over the `src/` unit suites (margin math, CSV, storage)
+plus structural assertions on the manifest and HTML. If `typescript` is installed
+locally it also runs a JSDoc-based `tsc --noEmit` type pass over `src/`; otherwise
+that step is skipped so the project stays runnable with zero dependencies.
 
 ## People Rates
 
@@ -73,19 +76,44 @@ For each time entry:
 
 ```text
 hours = duration_ms / 1000 / 60 / 60
-revenue = billable ? hours * project_bill_rate : 0
+revenue = billable ? hours * (project_bill_rate || person_default_bill_rate) : 0
 cost = hours * user_cost_rate
 gross_profit = revenue - cost
 margin = gross_profit / revenue
 ```
 
+When `project_bill_rate` is missing and the person's `default_bill_rate` is used,
+the resulting revenue is marked **estimated** and surfaced separately on the report.
+Subtotals are accumulated at full precision and rounded once for display, so the
+grand totals reconcile exactly with the project, person, and task breakdowns.
+
+The fetch is week-granular (ClickUp's timesheet API), so whole weeks bounding the
+lookback are requested and then **filtered back to the exact `[today − lookback, today]`
+window** — the report shows the resolved start/end dates rather than a raw "N-day"
+label. Each user-week is fetched with pagination, retry/backoff on 429/5xx, and
+bounded concurrency; coverage (succeeded vs expected user-weeks, plus any truncated
+weeks) is reported so partial data is never shown as if it were complete.
+
+## Reports
+
+The report page offers:
+
+- summary metrics: revenue, cost, gross profit, margin, billable hours, utilization, effective rate, tracked hours;
+- per-project, per-person, and per-task breakdowns (tabs);
+- target-margin and over-budget alert banners (driven by each project's `target_margin` and `budget_hours`);
+- three exports: entry-level CSV, project-summary CSV, and a client-facing invoice CSV (billable revenue only, no cost/margin columns).
+
+All CSV exports are guarded against spreadsheet formula injection.
+
 ## Current Limitations
 
-- Uses ClickUp internal web APIs discovered from the logged-in app. This is a great UX but can break if ClickUp changes frontend endpoints.
-- Stores rates locally in extension storage for now, not Google Sheets or ClickUp.
+- Uses ClickUp internal web APIs discovered from the logged-in app. This is a great UX but can break if ClickUp changes frontend endpoints (the report flags partial/failed fetches instead of silently dropping them).
+- Stores rates locally in extension storage for now, not Google Sheets or ClickUp. `chrome.storage.local` is not encrypted at rest (see `PRIVACY.md`).
 - Google Sheets without OAuth is research-only. Published CSV can work for read-only public sheets, while private Google Sheets session reuse needs a separate browser-tab experiment.
 - Maps projects by ClickUp List ID only.
 - Uses timesheet task aggregates, not raw individual time-entry descriptions.
+- Rates are flat (not effective-dated), so historical reports use current rates.
+- Single currency only — mixed-currency workspaces are detected and flagged rather than silently summed.
 - Does not write anything back to ClickUp.
 
 ## Future ClickUp Backend Research

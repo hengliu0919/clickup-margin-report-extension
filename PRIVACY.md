@@ -27,6 +27,12 @@ This data:
 - Is never shared with third parties
 - Is only accessible within your Chrome profile
 
+**Note on at-rest encryption:** Chrome's `storage.local` is stored unencrypted on
+disk within your Chrome profile directory. Anyone with access to your operating
+system user account could read it. Because cost rates are sensitive, use the
+**Clear all rates** button in Settings before sharing or disposing of a device,
+and rely on your OS account password / full-disk encryption for at-rest protection.
+
 ## Data Usage
 
 - Time entry data is used solely to calculate margin reports
