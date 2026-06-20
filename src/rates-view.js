@@ -38,11 +38,8 @@ export class RatesView {
     this.root.innerHTML = `
       ${empty ? this.onboardingHtml() : ""}
       <div class="card">
-        <h2>Report Window</h2>
-        <label>Lookback days
-          <input id="lookbackDays" type="number" min="1" max="120" value="${escapeAttr(s.lookbackDays || 14)}" />
-        </label>
-        <p>Data comes from your logged-in ClickUp tab. The window is filtered to the last N days.</p>
+        <h2>Import from ClickUp</h2>
+        <p>Pull workspace people and the project Lists with tracked time into the tables below. Pick the reporting range from the header on the Report tab.</p>
         <div class="cluster mt-4">
           <button class="btn btn-secondary" data-action="import-clickup">Refresh ClickUp users/projects</button>
         </div>
@@ -173,11 +170,6 @@ export class RatesView {
       const rows = rowEl.dataset.kind === "people" ? this.settings.peopleRates : this.settings.projectRates;
       rows[index][target.dataset.field] = target.type === "checkbox" ? target.checked : target.value;
       this.refreshValidation();
-      this.persist();
-      return;
-    }
-    if (target.id === "lookbackDays") {
-      this.settings.lookbackDays = Math.max(1, Number(target.value || 14));
       this.persist();
     }
   }

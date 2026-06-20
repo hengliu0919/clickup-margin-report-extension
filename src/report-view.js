@@ -36,17 +36,18 @@ export class ReportView {
       ${this.alertsHtml(report)}
       ${this.coverageHtml(report)}
       ${this.warningsHtml(report)}
-      <div class="card">
-        <h2>Summary</h2>
-        <div class="metrics-grid">
-          ${metric("Revenue", formatMoney(t.revenue, currency), TIPS.revenue)}
-          ${metric("Cost", formatMoney(t.cost, currency), TIPS.cost)}
-          ${metric("Gross Profit", formatMoney(t.grossProfit, currency), TIPS.grossProfit)}
-          ${metric("Margin", formatPercent(t.margin), TIPS.margin)}
-          ${metric("Billable hrs", t.billableHours, TIPS.billableHours)}
-          ${metric("Utilization", formatPercent(t.utilization), TIPS.utilization)}
-          ${metric("Effective rate", formatMoney(t.effectiveRate, currency), TIPS.effectiveRate)}
-          ${metric("Tracked hrs", t.trackedHours, TIPS.trackedHours)}
+      <div class="card summary-card">
+        <div class="hero-metrics">
+          ${hero("Revenue", formatMoney(t.revenue, currency), TIPS.revenue)}
+          ${hero("Gross Profit", formatMoney(t.grossProfit, currency), TIPS.grossProfit)}
+          ${hero("Margin", formatPercent(t.margin), TIPS.margin, marginClass(t.margin))}
+        </div>
+        <div class="sub-metrics">
+          ${sub("Cost", formatMoney(t.cost, currency), TIPS.cost)}
+          ${sub("Billable hrs", t.billableHours, TIPS.billableHours)}
+          ${sub("Tracked hrs", t.trackedHours, TIPS.trackedHours)}
+          ${sub("Utilization", formatPercent(t.utilization), TIPS.utilization)}
+          ${sub("Effective rate", formatMoney(t.effectiveRate, currency), TIPS.effectiveRate)}
         </div>
         ${this.estimatedNoteHtml(report, currency)}
         <div class="cluster mt-4">
@@ -305,9 +306,26 @@ export class ReportView {
   }
 }
 
-function metric(label, value, tip) {
-  const labelHtml = tip
-    ? `<span class="metric-label">${escapeHtml(label)}<span class="info-dot has-tip" data-tip="${escapeHtml(tip)}" tabindex="0" role="img" aria-label="${escapeHtml(tip)}">?</span></span>`
-    : `<span class="metric-label">${escapeHtml(label)}</span>`;
-  return `<div class="metric">${labelHtml}<strong class="metric-value">${escapeHtml(value)}</strong></div>`;
+function infoDot(tip) {
+  return `<span class="info-dot has-tip" data-tip="${escapeHtml(tip)}" tabindex="0" role="img" aria-label="${escapeHtml(tip)}">?</span>`;
+}
+
+function hero(label, value, tip, valueClass = "") {
+  return `<div class="hero-metric">
+    <div class="hero-metric-label">${escapeHtml(label)}${tip ? infoDot(tip) : ""}</div>
+    <div class="hero-metric-value ${valueClass}">${escapeHtml(value)}</div>
+  </div>`;
+}
+
+function sub(label, value, tip) {
+  return `<div class="sub-metric">
+    <div class="sub-metric-label">${escapeHtml(label)}${tip ? infoDot(tip) : ""}</div>
+    <div class="sub-metric-value">${escapeHtml(value)}</div>
+  </div>`;
+}
+
+// Tint the headline margin green/red against a 50% rule-of-thumb.
+function marginClass(margin) {
+  if (!Number.isFinite(margin) || margin === 0) return "";
+  return margin >= 0.5 ? "is-good" : "is-bad";
 }

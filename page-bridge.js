@@ -57,8 +57,9 @@
 
     if (message.type === "GET_MARGIN_DATA") {
       const workspaceId = getWorkspaceId();
-      const lookbackDays = Number(message.lookbackDays || 14);
-      return getMarginData({ workspaceId, lookbackDays });
+      // Prefer an explicit [startMs, endMs] range; fall back to lookbackDays.
+      const range = resolveRequestRange(message);
+      return getMarginData({ workspaceId, range });
     }
 
     throw new Error(`Unknown ClickUp bridge request: ${message.type}`);
@@ -174,10 +175,9 @@
     await Promise.all(runners);
   }
 
-  async function getMarginData({ workspaceId, lookbackDays }) {
+  async function getMarginData({ workspaceId, range }) {
     const users = await getWorkspaceUsers(workspaceId);
-    const weekStarts = getWeekStarts(lookbackDays);
-    const range = getRange(lookbackDays);
+    const weekStarts = getWeekStartsForRange(range);
     const entries = [];
     const errors = [];
     let truncatedWeeks = 0;
@@ -312,22 +312,17 @@
     };
   }
 
-  function getWeekStarts(lookbackDays) {
-    const end = startOfLocalDay(new Date());
-    const start = startOfLocalDay(new Date());
-    start.setDate(end.getDate() - lookbackDays);
-
-    const firstWeek = startOfWeek(start);
-    const weeks = [];
-    for (const cursor = new Date(firstWeek); cursor <= end; cursor.setDate(cursor.getDate() + 7)) {
-      weeks.push(cursor.getTime());
+  // Build the [start, end] window from the request: an explicit startMs/endMs
+  // range (from the dashboard's date-range picker) or a legacy lookbackDays.
+  function resolveRequestRange(message) {
+    const startMs = Number(message.startMs);
+    const endMs = Number(message.endMs);
+    if (Number.isFinite(startMs) && Number.isFinite(endMs) && startMs > 0 && endMs > startMs) {
+      const s = new Date(startMs);
+      const e = new Date(endMs);
+      return { startMs, endMs, startLabel: localDateLabel(s), endLabel: localDateLabel(e) };
     }
-    return weeks;
-  }
-
-  // The actual [start, end] window the user asked for (local day boundaries).
-  // Day buckets outside this are dropped even though whole weeks are fetched.
-  function getRange(lookbackDays) {
+    const lookbackDays = Number(message.lookbackDays || 14);
     const startDate = startOfLocalDay(new Date());
     startDate.setDate(startDate.getDate() - lookbackDays);
     const endDate = startOfLocalDay(new Date());
@@ -338,6 +333,17 @@
       startLabel: localDateLabel(startDate),
       endLabel: localDateLabel(endDate),
     };
+  }
+
+  // Every Sunday-aligned week start that overlaps [range.startMs, range.endMs].
+  function getWeekStartsForRange(range) {
+    const firstWeek = startOfWeek(new Date(range.startMs));
+    const end = new Date(range.endMs);
+    const weeks = [];
+    for (const cursor = new Date(firstWeek); cursor <= end; cursor.setDate(cursor.getDate() + 7)) {
+      weeks.push(cursor.getTime());
+    }
+    return weeks;
   }
 
   function localDateLabel(date) {

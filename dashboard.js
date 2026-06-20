@@ -3,6 +3,7 @@ import { loadSettings, saveSettings } from "./src/storage.js";
 import { getClickUpTab, sendToClickUpTab } from "./src/clickup-tab.js";
 import { ReportView } from "./src/report-view.js";
 import { RatesView } from "./src/rates-view.js";
+import { RANGE_PRESETS, resolveRange } from "./src/date-range.js";
 
 const tabs = {
   report: document.querySelector("#tab-report"),
@@ -14,6 +15,9 @@ const connStatus = document.querySelector("#connStatus");
 const globalStatus = document.querySelector("#globalStatus");
 const refreshBtn = document.querySelector("#refreshBtn");
 const storageSummary = document.querySelector("#storageSummary");
+const rangePreset = document.querySelector("#rangePreset");
+const rangeStart = document.querySelector("#rangeStart");
+const rangeEnd = document.querySelector("#rangeEnd");
 
 let settings = await loadSettings();
 let rawData = null; // cached ClickUp fetch: { entries, users, errors, coverage, range }
@@ -54,6 +58,7 @@ for (const btn of tabButtons) {
 }
 refreshBtn.addEventListener("click", () => runReport({ force: true }));
 
+setupRangePicker();
 setupCompanyForm();
 renderStorageSummary();
 initConnection();
@@ -81,13 +86,19 @@ async function initConnection() {
   }
 }
 
+function currentRange() {
+  const r = settings.range || { preset: "this-month" };
+  return resolveRange(r.preset, { customStart: r.customStart, customEnd: r.customEnd });
+}
+
 async function fetchClickUpData() {
   const tab = await getClickUpTab({ preferActive: true });
   if (!tab) throw new Error("Open a ClickUp workspace tab first.");
+  const range = currentRange();
   const data = await sendToClickUpTab(
     tab.id,
     "GET_MARGIN_DATA",
-    { lookbackDays: settings.lookbackDays },
+    { startMs: range.startMs, endMs: range.endMs, lookbackDays: settings.lookbackDays },
     { onStatus: (m) => setGlobalStatus(m) }
   );
   return data;
@@ -175,6 +186,40 @@ function renderStorageSummary() {
   const p = (settings.peopleRates || []).length;
   const pr = (settings.projectRates || []).length;
   storageSummary.textContent = `People rates: ${p} rows · Project rates: ${pr} rows · Stored in this browser`;
+}
+
+function setupRangePicker() {
+  rangePreset.innerHTML = RANGE_PRESETS.map(
+    (r) => `<option value="${r.id}">${r.label}</option>`
+  ).join("");
+  const r = settings.range || { preset: "this-month" };
+  rangePreset.value = r.preset;
+  rangeStart.value = r.customStart || "";
+  rangeEnd.value = r.customEnd || "";
+  toggleCustomDates();
+
+  rangePreset.addEventListener("change", async () => {
+    settings = await saveSettings({ ...settings, range: { ...settings.range, preset: rangePreset.value } });
+    toggleCustomDates();
+    // Re-fetch for a new range (custom waits until both dates are set).
+    if (rangePreset.value !== "custom") runReport({ force: true });
+  });
+
+  for (const el of [rangeStart, rangeEnd]) {
+    el.addEventListener("change", async () => {
+      settings = await saveSettings({
+        ...settings,
+        range: { preset: "custom", customStart: rangeStart.value, customEnd: rangeEnd.value },
+      });
+      if (rangeStart.value && rangeEnd.value) runReport({ force: true });
+    });
+  }
+}
+
+function toggleCustomDates() {
+  const isCustom = rangePreset.value === "custom";
+  rangeStart.classList.toggle("hidden", !isCustom);
+  rangeEnd.classList.toggle("hidden", !isCustom);
 }
 
 function setupCompanyForm() {

@@ -85,8 +85,17 @@ const defaultCompany = {
   notes: "",
 };
 
+// Selected reporting window. preset is a RANGE_PRESETS id; customStart/End are
+// YYYY-MM-DD used only when preset === "custom".
+const defaultRange = {
+  preset: "this-month",
+  customStart: "",
+  customEnd: "",
+};
+
 export const defaultSettings = {
-  lookbackDays: 14,
+  lookbackDays: 14, // legacy; kept for back-compat with older exports
+  range: defaultRange,
   peopleRates: [],
   projectRates: [],
   company: defaultCompany,
@@ -129,9 +138,19 @@ export function openOptionsPage() {
 function normalizeSettings(settings) {
   return {
     lookbackDays: Math.max(1, Number(settings.lookbackDays || defaultSettings.lookbackDays)),
+    range: normalizeRange(settings.range),
     peopleRates: normalizePeopleRates(settings.peopleRates, settings.peopleRatesCsv),
     projectRates: normalizeProjectRates(settings.projectRates, settings.projectRatesCsv),
     company: normalizeCompany(settings.company),
+  };
+}
+
+function normalizeRange(range) {
+  const r = range && typeof range === "object" ? range : {};
+  return {
+    preset: string(r.preset || defaultRange.preset),
+    customStart: string(r.customStart),
+    customEnd: string(r.customEnd),
   };
 }
 

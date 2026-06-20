@@ -22,7 +22,11 @@
           <p id="connStatus" class="status-text">Checking ClickUp connection…</p>
         </div>
         <div class="topbar-actions">
-          <button id="refreshBtn" type="button" class="btn btn-primary has-tip" data-tip="Re-fetch time data from your ClickUp tab." aria-label="Refresh data: re-fetch time data from your ClickUp tab">Refresh data</button>
+          <label class="range-label" for="rangePreset">Range</label>
+          <select id="rangePreset" class="range-select"></select>
+          <input id="rangeStart" type="date" class="range-date hidden" aria-label="From date" />
+          <input id="rangeEnd" type="date" class="range-date hidden" aria-label="To date" />
+          <button id="refreshBtn" type="button" class="btn btn-primary has-tip" data-tip="Re-fetch time data from your ClickUp tab." aria-label="Refresh data: re-fetch time data from your ClickUp tab">Refresh</button>
         </div>
       </div>
 
