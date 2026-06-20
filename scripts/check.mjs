@@ -52,6 +52,9 @@ assertHtml("dashboard.html", [
   'id="refreshBtn"',
   'id="rangePreset"',
   'id="rangeStart"',
+  'id="excludeInvoiced"',
+  'data-tab="invoices"',
+  'id="tab-invoices"',
   'src="dashboard.js"',
 ]);
 const dashboardHtml = fs.readFileSync(new URL("dashboard.html", root), "utf8");
@@ -85,7 +88,7 @@ function assertSource(file, markers) {
 execFileSync(process.execPath, [new URL("scripts/design-lint.mjs", root).pathname], { stdio: "inherit" });
 
 // 4. Run the unit + integration tests (node:test).
-const testFiles = ["scripts/margin.test.mjs", "scripts/csv.test.mjs", "scripts/storage.test.mjs", "scripts/invoice.test.mjs", "scripts/links.test.mjs", "scripts/date-range.test.mjs"].map(
+const testFiles = ["scripts/margin.test.mjs", "scripts/csv.test.mjs", "scripts/storage.test.mjs", "scripts/invoice.test.mjs", "scripts/links.test.mjs", "scripts/date-range.test.mjs", "scripts/ledger.test.mjs"].map(
   (file) => new URL(file, root).pathname
 );
 execFileSync(process.execPath, ["--test", ...testFiles], { stdio: "inherit" });

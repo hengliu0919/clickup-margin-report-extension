@@ -1,4 +1,3 @@
-import { buildInvoices, invoiceNumber, dueDate } from "./src/invoice.js";
 import { formatMoney } from "./src/margin.js";
 import { loadSettings } from "./src/storage.js";
 import { escapeHtml, dateStamp } from "./src/dom.js";
@@ -25,15 +24,11 @@ async function init() {
   const settings = await loadSettings();
   company = payload?.company || settings.company || {};
 
-  const report = payload?.report;
-  if (!report) {
-    showEmpty("Open the dashboard, run a report, then choose “Generate invoices”.");
-    return;
-  }
-
-  invoices = buildInvoices(report);
+  // The dashboard now hands over fully-numbered invoices (recorded in the ledger).
+  invoices = Array.isArray(payload?.invoices) ? payload.invoices : [];
+  if (invoices.length && payload.invoices[0].issueDate) issueDate = payload.invoices[0].issueDate;
   if (!invoices.length) {
-    showEmpty();
+    showEmpty("Open the dashboard, run a report, then choose “Generate invoices”.");
     return;
   }
 
@@ -72,18 +67,12 @@ function renderClientFilter() {
 
 function renderSheets(filter) {
   const shown = filter === "all" ? invoices : invoices.filter((i) => i.client === filter);
-  elements.sheets.innerHTML = shown
-    .map((inv, i) => sheetHtml(inv, invoiceNumber(company, indexOf(inv))))
-    .join("");
+  elements.sheets.innerHTML = shown.map((inv) => sheetHtml(inv)).join("");
 }
 
-// Stable invoice number per client regardless of the active filter.
-function indexOf(inv) {
-  return invoices.findIndex((i) => i.client === inv.client);
-}
-
-function sheetHtml(inv, number) {
-  const due = dueDate(issueDate, company.paymentTerms);
+function sheetHtml(inv) {
+  const number = inv.number;
+  const due = inv.dueDate || "";
   const fromName = company.name || "Your company";
   const fromBlock = [company.name, company.email, company.address].filter(Boolean).join("\n") || "Set your company details in the dashboard Settings tab.";
 

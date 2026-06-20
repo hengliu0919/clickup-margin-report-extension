@@ -26,6 +26,9 @@
           <select id="rangePreset" class="range-select"></select>
           <input id="rangeStart" type="date" class="range-date hidden" aria-label="From date" />
           <input id="rangeEnd" type="date" class="range-date hidden" aria-label="To date" />
+          <label class="range-label has-tip" data-tip="Hide time already covered by a generated invoice, so you never bill the same hours twice." aria-label="Exclude already-invoiced time">
+            <input id="excludeInvoiced" type="checkbox" /> Exclude invoiced
+          </label>
           <button id="refreshBtn" type="button" class="btn btn-primary has-tip" data-tip="Re-fetch time data from your ClickUp tab." aria-label="Refresh data: re-fetch time data from your ClickUp tab">Refresh</button>
         </div>
       </div>
@@ -33,6 +36,7 @@
       <div class="tabs dash-tabs" role="tablist" aria-label="Dashboard sections">
         <button class="tab tab-active" role="tab" aria-selected="true" aria-controls="tab-report" data-tab="report" type="button">Report</button>
         <button class="tab" role="tab" aria-selected="false" aria-controls="tab-rates" data-tab="rates" type="button">Rates</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="tab-invoices" data-tab="invoices" type="button">Invoices</button>
         <button class="tab" role="tab" aria-selected="false" aria-controls="tab-settings" data-tab="settings" type="button">Settings</button>
       </div>
 
@@ -40,6 +44,7 @@
 
       <section id="tab-report" role="tabpanel" class="dash-panel"></section>
       <section id="tab-rates" role="tabpanel" class="dash-panel hidden"></section>
+      <section id="tab-invoices" role="tabpanel" class="dash-panel hidden"></section>
       <section id="tab-settings" role="tabpanel" class="dash-panel hidden">
         <div class="card">
           <div class="section-heading">

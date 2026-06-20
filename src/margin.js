@@ -72,12 +72,13 @@ export function parseRateTables(settings) {
   return { peopleRates, projectRates };
 }
 
-export function buildMarginReport({ entries, tasksById, peopleRates, projectRates, workspaceId = "" }) {
+export function buildMarginReport({ entries, tasksById, peopleRates, projectRates, workspaceId = "", excludeEntryIds = null }) {
   const projectTotals = new Map();
   const peopleTotals = new Map();
   const taskTotals = new Map();
   const entryRows = [];
   const currencies = new Set();
+  let excludedCount = 0;
   const missing = {
     peopleRates: new Map(),
     projectRates: new Map(),
@@ -87,6 +88,11 @@ export function buildMarginReport({ entries, tasksById, peopleRates, projectRate
   // Accumulate raw (unrounded) sums; round only once for display/export so grand
   // totals reconcile with the project breakdown and the CSV.
   for (const entry of entries) {
+    // Skip entries already covered by a prior invoice (exclude-already-invoiced).
+    if (excludeEntryIds && entry.id && excludeEntryIds.has(entry.id)) {
+      excludedCount += 1;
+      continue;
+    }
     const taskId = getEntryTaskId(entry);
     const task = tasksById.get(taskId) || entry.task || null;
     const user = normalizeUser(entry);
@@ -116,7 +122,7 @@ export function buildMarginReport({ entries, tasksById, peopleRates, projectRate
     const userName = person?.username || user.name || `User ${user.id || "unknown"}`;
     const taskName = task?.name || entry.task?.name || taskId || "Unknown task";
     const whenMs = Number(entry.start || entry.start_date || entry.at || 0) || 0;
-    const audit = { hours, billable, revenue, cost, grossProfit, estimated, whenMs, taskId, taskName };
+    const audit = { hours, billable, revenue, cost, grossProfit, estimated, whenMs, taskId, taskName, entryId: entry.id || "" };
 
     accumulate(projectTotals, key, () => ({
       key,
@@ -181,6 +187,7 @@ export function buildMarginReport({ entries, tasksById, peopleRates, projectRate
 
   return {
     workspaceId: String(workspaceId || ""),
+    excludedCount,
     totals: displayTotals,
     currencies: [...currencies],
     currency: currencies.size === 1 ? [...currencies][0] : null,
@@ -198,7 +205,7 @@ export function buildMarginReport({ entries, tasksById, peopleRates, projectRate
   };
 }
 
-function accumulate(map, key, makeBase, { hours, billable, revenue, cost, grossProfit, estimated, whenMs = 0, taskId = "", taskName = "" }) {
+function accumulate(map, key, makeBase, { hours, billable, revenue, cost, grossProfit, estimated, whenMs = 0, taskId = "", taskName = "", entryId = "" }) {
   if (!map.has(key)) {
     map.set(key, {
       ...makeBase(),
@@ -210,6 +217,7 @@ function accumulate(map, key, makeBase, { hours, billable, revenue, cost, grossP
       estimatedRevenue: 0,
       lastMs: 0, // most recent entry timestamp in this group
       taskHours: new Map(), // taskId -> { hours, name } so we can pick the top task
+      billableEntryIds: [], // entry ids of billable time (for the invoice ledger)
     });
   }
   const total = map.get(key);
@@ -220,6 +228,7 @@ function accumulate(map, key, makeBase, { hours, billable, revenue, cost, grossP
   total.grossProfit += grossProfit;
   if (estimated) total.estimatedRevenue += revenue;
   if (whenMs > total.lastMs) total.lastMs = whenMs;
+  if (billable && entryId) total.billableEntryIds.push(entryId);
   if (taskId) {
     const t = total.taskHours.get(taskId) || { hours: 0, name: taskName };
     t.hours += hours;

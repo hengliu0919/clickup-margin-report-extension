@@ -135,6 +135,81 @@ export function openOptionsPage() {
   window.location.href = "dashboard.html";
 }
 
+// --- Invoice ledger ---------------------------------------------------------
+// Stored separately from settings so "clear rates" / settings import don't touch
+// invoice history. Each record: { number, client, issueDate, dueDate, total,
+// currency, entryIds: string[], paid: boolean, paidDate, createdAt }.
+const LEDGER_KEY = "clickupMarginInvoiceLedger";
+
+export async function loadInvoices() {
+  if (hasChromeStorage()) {
+    const stored = await chrome.storage.local.get(LEDGER_KEY);
+    return sanitizeInvoices(stored[LEDGER_KEY]);
+  }
+  const raw = localStorage.getItem(LEDGER_KEY);
+  return raw ? sanitizeInvoices(JSON.parse(raw)) : [];
+}
+
+async function saveInvoices(list) {
+  const clean = sanitizeInvoices(list);
+  if (hasChromeStorage()) {
+    await chrome.storage.local.set({ [LEDGER_KEY]: clean });
+  } else {
+    localStorage.setItem(LEDGER_KEY, JSON.stringify(clean));
+  }
+  return clean;
+}
+
+// Append newly generated invoices to the ledger and return the full list.
+export async function recordInvoices(records) {
+  const existing = await loadInvoices();
+  return saveInvoices([...existing, ...sanitizeInvoices(records)]);
+}
+
+export async function setInvoicePaid(number, paid) {
+  const list = await loadInvoices();
+  const next = list.map((inv) =>
+    inv.number === number ? { ...inv, paid: Boolean(paid), paidDate: paid ? inv.paidDate || todayIso() : "" } : inv
+  );
+  return saveInvoices(next);
+}
+
+export async function deleteInvoice(number) {
+  const list = await loadInvoices();
+  return saveInvoices(list.filter((inv) => inv.number !== number));
+}
+
+// The set of entry ids already covered by any invoice (for exclude-already-invoiced).
+export async function invoicedEntryIds() {
+  const list = await loadInvoices();
+  const set = new Set();
+  for (const inv of list) for (const id of inv.entryIds || []) set.add(id);
+  return set;
+}
+
+function sanitizeInvoices(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((inv) => inv && typeof inv === "object" && inv.number)
+    .map((inv) => ({
+      number: string(inv.number),
+      client: string(inv.client),
+      issueDate: string(inv.issueDate),
+      dueDate: string(inv.dueDate),
+      total: Number(inv.total) || 0,
+      currency: string(inv.currency || "USD"),
+      entryIds: Array.isArray(inv.entryIds) ? inv.entryIds.map(string) : [],
+      paid: Boolean(inv.paid),
+      paidDate: string(inv.paidDate),
+      createdAt: string(inv.createdAt),
+    }));
+}
+
+function todayIso() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function normalizeSettings(settings) {
   return {
     lookbackDays: Math.max(1, Number(settings.lookbackDays || defaultSettings.lookbackDays)),

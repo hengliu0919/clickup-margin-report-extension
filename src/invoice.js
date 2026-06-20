@@ -28,20 +28,24 @@ export function buildInvoices(report) {
   const byClient = new Map();
   for (const p of report.projects || []) {
     if (!(p.revenue > 0)) continue;
-    if (!byClient.has(p.client)) byClient.set(p.client, []);
-    byClient.get(p.client).push({
+    if (!byClient.has(p.client)) byClient.set(p.client, { lines: [], entryIds: [] });
+    const bucket = byClient.get(p.client);
+    bucket.lines.push({
       project: p.project,
       hours: p.billableHours,
       rate: p.effectiveRate,
       amount: p.revenue,
       taskId: p.topTaskId || "", // the project's top task, for the per-line audit link
     });
+    // Carry the billable entry ids so the ledger can mark exactly these as invoiced.
+    for (const id of p.billableEntryIds || []) bucket.entryIds.push(id);
   }
 
-  return [...byClient.entries()].map(([client, lines]) => ({
+  return [...byClient.entries()].map(([client, bucket]) => ({
     client,
-    lines: lines.sort((a, b) => b.amount - a.amount),
-    total: round(lines.reduce((sum, l) => sum + l.amount, 0)),
+    lines: bucket.lines.sort((a, b) => b.amount - a.amount),
+    entryIds: bucket.entryIds,
+    total: round(bucket.lines.reduce((sum, l) => sum + l.amount, 0)),
     currency: report.currency || "USD",
   }));
 }

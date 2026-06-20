@@ -1,13 +1,19 @@
-import { buildMarginReport, parseRateTables } from "./src/margin.js";
-import { loadSettings, saveSettings } from "./src/storage.js";
+import { buildMarginReport, parseRateTables, formatMoney } from "./src/margin.js";
+import {
+  loadSettings, saveSettings,
+  loadInvoices, recordInvoices, setInvoicePaid, deleteInvoice, invoicedEntryIds,
+} from "./src/storage.js";
 import { getClickUpTab, sendToClickUpTab, ensureBridgeReady } from "./src/clickup-tab.js";
 import { ReportView } from "./src/report-view.js";
 import { RatesView } from "./src/rates-view.js";
 import { RANGE_PRESETS, resolveRange } from "./src/date-range.js";
+import { buildInvoices, invoiceNumber, dueDate } from "./src/invoice.js";
+import { escapeHtml } from "./src/dom.js";
 
 const tabs = {
   report: document.querySelector("#tab-report"),
   rates: document.querySelector("#tab-rates"),
+  invoices: document.querySelector("#tab-invoices"),
   settings: document.querySelector("#tab-settings"),
 };
 const tabButtons = [...document.querySelectorAll(".dash-tabs .tab")];
@@ -18,6 +24,7 @@ const storageSummary = document.querySelector("#storageSummary");
 const rangePreset = document.querySelector("#rangePreset");
 const rangeStart = document.querySelector("#rangeStart");
 const rangeEnd = document.querySelector("#rangeEnd");
+const excludeInvoiced = document.querySelector("#excludeInvoiced");
 
 let settings = await loadSettings();
 let rawData = null; // cached ClickUp fetch: { entries, users, errors, coverage, range }
@@ -57,10 +64,15 @@ for (const btn of tabButtons) {
   btn.addEventListener("click", () => switchTab(btn.dataset.tab));
 }
 refreshBtn.addEventListener("click", () => runReport({ force: true }));
+// Toggling exclude-invoiced recomputes from cache (no re-fetch needed).
+excludeInvoiced.addEventListener("change", () => recomputeReport());
+// Invoices tab actions (mark paid / delete / open).
+tabs.invoices.addEventListener("click", onInvoicesClick);
 
 setupRangePicker();
 setupCompanyForm();
 renderStorageSummary();
+renderInvoicesTab();
 initConnection();
 // Auto-run on load. runReport renders a loading placeholder, then either the
 // report, an actionable empty state (no ClickUp tab), or an error with retry.
@@ -164,7 +176,7 @@ async function runReport({ force = false, silentIfNoTab = false, attempt = 0 } =
 
 // Recompute the margin report from the cached raw ClickUp data + current rates.
 // This is the fast path: edit a rate, see the margin change with no network call.
-function recomputeReport() {
+async function recomputeReport() {
   if (!rawData) {
     reportView.render(null);
     return;
@@ -173,7 +185,8 @@ function recomputeReport() {
     rawData.entries.map((entry) => [entry.task?.id, entry.task]).filter(([taskId]) => taskId)
   );
   const { peopleRates, projectRates } = parseRateTables(settings);
-  const report = buildMarginReport({ entries: rawData.entries, tasksById, peopleRates, projectRates, workspaceId: rawData.workspaceId });
+  const excludeEntryIds = excludeInvoiced?.checked ? await invoicedEntryIds() : null;
+  const report = buildMarginReport({ entries: rawData.entries, tasksById, peopleRates, projectRates, workspaceId: rawData.workspaceId, excludeEntryIds });
   report.apiErrors = rawData.errors || [];
   report.coverage = rawData.coverage || null;
   report.range = rawData.range || null;
@@ -184,17 +197,52 @@ function recomputeReport() {
   reportView.render(report, meta);
 }
 
-// Hand the current report + company details to the invoice page and open it.
-function generateInvoices() {
+// Build invoices from the current report, record them in the ledger (assigning
+// sequential numbers and bumping the company's next number), then hand the
+// numbered invoices to the invoice page for display/print.
+async function generateInvoices() {
   if (!currentReport) return;
+  const invoices = buildInvoices(currentReport);
+  if (!invoices.length) {
+    setGlobalStatus("No billable work to invoice in this range.", "warning");
+    return;
+  }
+
+  const company = settings.company || {};
+  const issueDate = todayStamp();
+  const numbered = invoices.map((inv, i) => ({
+    ...inv,
+    number: invoiceNumber(company, i),
+    issueDate,
+    dueDate: dueDate(issueDate, company.paymentTerms),
+  }));
+
+  // Persist to the ledger so this time can be excluded next period + tracked/paid.
+  const records = numbered.map((inv) => ({
+    number: inv.number,
+    client: inv.client,
+    issueDate: inv.issueDate,
+    dueDate: inv.dueDate,
+    total: inv.total,
+    currency: inv.currency,
+    entryIds: inv.entryIds,
+    paid: false,
+    createdAt: issueDate,
+  }));
+  await recordInvoices(records);
+
+  // Advance the next invoice number so future runs don't collide.
+  const nextNum = Number(company.nextInvoiceNumber) || 1001;
+  settings = await saveSettings({ ...settings, company: { ...company, nextInvoiceNumber: String(nextNum + numbered.length) } });
+  setupRangePicker(); // settings object replaced; keep references fresh
+  await renderInvoicesTab();
+
   const payload = {
-    report: {
-      projects: currentReport.projects,
-      currency: currentReport.currency,
-      range: currentReport.range,
-      workspaceId: currentReport.workspaceId,
-    },
-    company: settings.company,
+    invoices: numbered,
+    company,
+    currency: currentReport.currency,
+    range: currentReport.range,
+    workspaceId: currentReport.workspaceId,
   };
   // localStorage (not sessionStorage) so the new invoice tab — a separate
   // browsing context — can read the handoff across tabs of the same origin.
@@ -206,10 +254,72 @@ function generateInvoices() {
   }
 }
 
+function todayStamp() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function renderStorageSummary() {
   const p = (settings.peopleRates || []).length;
   const pr = (settings.projectRates || []).length;
   storageSummary.textContent = `People rates: ${p} rows · Project rates: ${pr} rows · Stored in this browser`;
+}
+
+// --- Invoices tab -----------------------------------------------------------
+async function renderInvoicesTab() {
+  const list = (await loadInvoices()).slice().reverse(); // newest first
+  if (!list.length) {
+    tabs.invoices.innerHTML = `<div class="card"><div class="empty-state">
+      <div class="empty-state-icon">🧾</div>
+      <div class="empty-state-title">No invoices yet</div>
+      <div class="empty-state-description">Generate invoices from the Report tab. They’ll be tracked here, and their hours can be excluded from future reports.</div>
+    </div></div>`;
+    return;
+  }
+  const outstanding = list.filter((i) => !i.paid).reduce((s, i) => s + i.total, 0);
+  const currency = list[0].currency || "USD";
+  const rows = list.map((inv) => `<tr class="${inv.paid ? "" : "row-flag"}">
+    <td>${escapeHtml(inv.number)}</td>
+    <td>${escapeHtml(inv.client)}</td>
+    <td>${escapeHtml(inv.issueDate)}</td>
+    <td>${escapeHtml(inv.dueDate || "—")}</td>
+    <td>${formatMoney(inv.total, inv.currency)}</td>
+    <td>${inv.paid ? `<span class="badge badge-success">Paid</span>` : `<span class="badge badge-warning">Unpaid</span>`}</td>
+    <td>
+      <button class="btn btn-secondary btn-sm" data-inv-action="toggle-paid" data-number="${escapeHtml(inv.number)}">${inv.paid ? "Mark unpaid" : "Mark paid"}</button>
+      <button class="btn btn-danger btn-sm" data-inv-action="delete" data-number="${escapeHtml(inv.number)}">Delete</button>
+    </td>
+  </tr>`).join("");
+
+  tabs.invoices.innerHTML = `<div class="card">
+    <div class="section-heading">
+      <div class="section-heading-content">
+        <h2>Invoice history</h2>
+        <p>${list.length} invoice${list.length === 1 ? "" : "s"} · ${formatMoney(outstanding, currency)} outstanding</p>
+      </div>
+    </div>
+    <div class="table-container"><div class="table-scroll"><table>
+      <thead><tr><th>Number</th><th>Client</th><th>Issued</th><th>Due</th><th>Total</th><th>Status</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div></div>
+    <p class="status-text mt-3">Deleting an invoice also un-marks its hours as invoiced, so they reappear in reports.</p>
+  </div>`;
+}
+
+async function onInvoicesClick(e) {
+  const btn = e.target.closest("[data-inv-action]");
+  if (!btn) return;
+  const number = btn.dataset.number;
+  if (btn.dataset.invAction === "toggle-paid") {
+    const list = await loadInvoices();
+    const inv = list.find((i) => i.number === number);
+    await setInvoicePaid(number, !inv?.paid);
+  } else if (btn.dataset.invAction === "delete") {
+    if (typeof confirm === "function" && !confirm(`Delete invoice ${number}? Its hours will no longer be marked invoiced.`)) return;
+    await deleteInvoice(number);
+    if (excludeInvoiced?.checked) recomputeReport();
+  }
+  renderInvoicesTab();
 }
 
 function setupRangePicker() {
