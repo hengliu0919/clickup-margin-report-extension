@@ -47,6 +47,7 @@ const ratesView = new RatesView(tabs.rates, {
 // Deep-link from a report warning ("fix in Rates") to the Rates tab.
 tabs.report.addEventListener("goto-tab", (e) => switchTab(e.detail));
 tabs.report.addEventListener("generate-invoices", generateInvoices);
+tabs.report.addEventListener("retry", () => runReport({ force: true }));
 
 for (const btn of tabButtons) {
   btn.addEventListener("click", () => switchTab(btn.dataset.tab));
@@ -55,10 +56,9 @@ refreshBtn.addEventListener("click", () => runReport({ force: true }));
 
 setupCompanyForm();
 renderStorageSummary();
-reportView.render(null);
 initConnection();
-// Auto-run on load if a ClickUp tab is available; otherwise the Report tab shows
-// the empty state and the connection line nudges the user.
+// Auto-run on load. runReport renders a loading placeholder, then either the
+// report, an actionable empty state (no ClickUp tab), or an error with retry.
 runReport({ silentIfNoTab: true });
 
 function switchTab(name) {
@@ -95,21 +95,32 @@ async function fetchClickUpData() {
 
 async function runReport({ force = false, silentIfNoTab = false } = {}) {
   refreshBtn.disabled = true;
-  setGlobalStatus("Loading ClickUp data…");
+  setGlobalStatus("");
+  // Only show the loading placeholder when we have nothing to display yet, so a
+  // refresh of an existing report doesn't blank the screen.
+  if (!currentReport) reportView.renderState("loading", "Reading time data from your ClickUp tab…");
   try {
     settings = await loadSettings();
     ratesView.setSettings(settings);
     rawData = await fetchClickUpData();
     lastFetchedAt = Date.now();
-    setGlobalStatus("");
     initConnection();
     recomputeReport();
   } catch (error) {
-    if (silentIfNoTab && /Open a ClickUp/i.test(error.message)) {
-      setGlobalStatus("");
-      reportView.render(null);
+    const noTab = /Open a ClickUp/i.test(error.message);
+    if (silentIfNoTab && noTab && !currentReport) {
+      reportView.renderState("empty", "Open an app.clickup.com tab, then load your time data.", {
+        actionLabel: "Load data",
+        actionEvent: "retry",
+      });
+    } else if (!currentReport) {
+      reportView.renderState("error", error.message || "Failed to load report.", {
+        actionLabel: "Try again",
+        actionEvent: "retry",
+      });
     } else {
-      setGlobalStatus(error.message || "Failed to load report", "error");
+      // Keep the existing report visible; just surface the error inline.
+      setGlobalStatus(error.message || "Failed to refresh", "error");
     }
   } finally {
     refreshBtn.disabled = false;

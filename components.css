@@ -306,7 +306,7 @@ select:focus {
 }
 
 textarea {
-  min-height: 150px;
+  min-height: 72px;
   resize: vertical;
 }
 
@@ -316,6 +316,16 @@ label {
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
   margin-bottom: var(--space-1);
+}
+
+/* A control placed inside a <label> (label text then input) stacks vertically
+   and spans the label's width, so the text sits above its field. */
+label > input:not([type="checkbox"]):not([type="radio"]),
+label > textarea,
+label > select {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-1);
 }
 
 input[type="checkbox"],

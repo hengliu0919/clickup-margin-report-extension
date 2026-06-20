@@ -88,9 +88,9 @@
     const requestId = crypto.randomUUID();
     const timeout = setTimeout(() => {
       if (!pending.has(requestId)) return;
-      pending.get(requestId).reject(new Error("Timed out waiting for ClickUp page data."));
+      pending.get(requestId).reject(new Error("Timed out waiting for ClickUp page data. Reload the ClickUp tab and try again."));
       pending.delete(requestId);
-    }, 120000);
+    }, 30000);
 
     const promise = new Promise((resolve, reject) => {
       pending.set(requestId, { resolve, reject, timeout });

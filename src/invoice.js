@@ -34,7 +34,7 @@ export function buildInvoices(report) {
       hours: p.billableHours,
       rate: p.effectiveRate,
       amount: p.revenue,
-      lastMs: p.lastMs || 0, // for the per-line "audit in ClickUp" timesheet link
+      taskId: p.topTaskId || "", // the project's top task, for the per-line audit link
     });
   }
 
@@ -43,7 +43,6 @@ export function buildInvoices(report) {
     lines: lines.sort((a, b) => b.amount - a.amount),
     total: round(lines.reduce((sum, l) => sum + l.amount, 0)),
     currency: report.currency || "USD",
-    workspaceId: report.workspaceId || "",
   }));
 }
 

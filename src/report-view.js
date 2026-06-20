@@ -1,7 +1,7 @@
 import { formatMoney, formatPercent } from "./margin.js";
 import { downloadCsv, toCsv } from "./csv.js";
 import { escapeHtml, dateStamp } from "./dom.js";
-import { taskUrl, timesheetWeekUrl } from "./clickup-links.js";
+import { taskUrl } from "./clickup-links.js";
 import { TIPS } from "./glossary.js";
 
 // Renders a computed margin report into a container element. Stateless except for
@@ -121,11 +121,14 @@ export class ReportView {
         <div class="empty-state-description">Try increasing the lookback in Settings</div>
       </div></td></tr>`;
     }
-    const ws = this.report.workspaceId;
+    // Audit links point at a real ClickUp task: task rows -> their own task;
+    // project/person rows -> their top task (most hours). ClickUp's timesheet
+    // can't be URL-filtered by person/task, so we never link there (it lands on
+    // the viewer's own "My timesheet" and looks empty).
     if (this.view === "projects") {
       return rows.map((p) => `<tr class="${p.belowTarget || p.overBudget ? "row-flag" : ""}">
         <td>${escapeHtml(p.client)}</td><td>${escapeHtml(p.project)}</td>
-        <td>${this.hoursCell(p.trackedHours, timesheetWeekUrl(ws, p.lastMs))}</td>
+        <td>${this.hoursCell(p.trackedHours, p.topTaskId, p.topTaskName)}</td>
         <td>${formatMoney(p.revenue, currency)}</td><td>${formatMoney(p.cost, currency)}</td>
         <td>${formatMoney(p.grossProfit, currency)}</td><td>${this.marginCell(p)}</td>
         <td>${p.budgetHours ? `${formatPercent(p.budgetUsed)}${p.overBudget ? " ⚠️" : ""}` : "—"}</td></tr>`).join("");
@@ -133,22 +136,24 @@ export class ReportView {
     if (this.view === "people") {
       return rows.map((p) => `<tr>
         <td>${escapeHtml(p.user)}</td><td>${escapeHtml(p.role || "—")}</td>
-        <td>${this.hoursCell(p.trackedHours, timesheetWeekUrl(ws, p.lastMs))}</td>
-        <td>${this.hoursCell(p.billableHours, timesheetWeekUrl(ws, p.lastMs))}</td><td>${formatPercent(p.utilization)}</td>
+        <td>${this.hoursCell(p.trackedHours, p.topTaskId, p.topTaskName)}</td>
+        <td>${this.hoursCell(p.billableHours, p.topTaskId, p.topTaskName)}</td><td>${formatPercent(p.utilization)}</td>
         <td>${formatMoney(p.revenue, currency)}</td><td>${formatMoney(p.cost, currency)}</td>
         <td>${formatPercent(p.margin)}</td></tr>`).join("");
     }
     return rows.map((t) => `<tr>
       <td>${this.taskLinkCell(t.task, t.taskId)}</td><td>${escapeHtml(t.client)}</td><td>${escapeHtml(t.project)}</td>
-      <td>${this.hoursCell(t.trackedHours, taskUrl(t.taskId) || timesheetWeekUrl(ws, t.lastMs))}</td>
-      <td>${this.hoursCell(t.billableHours, taskUrl(t.taskId) || timesheetWeekUrl(ws, t.lastMs))}</td><td>${formatMoney(t.revenue, currency)}</td>
+      <td>${this.hoursCell(t.trackedHours, t.taskId, t.task)}</td>
+      <td>${this.hoursCell(t.billableHours, t.taskId, t.task)}</td><td>${formatMoney(t.revenue, currency)}</td>
       <td>${formatMoney(t.cost, currency)}</td><td>${formatPercent(t.margin)}</td></tr>`).join("");
   }
 
-  // A numeric cell that links out to ClickUp for audit when a URL is available.
-  hoursCell(value, url) {
+  // A numeric cell that links to a ClickUp task for audit. No link if no task.
+  hoursCell(value, taskId, taskName) {
+    const url = taskUrl(taskId);
     if (!url) return String(value);
-    return `<a class="audit-link" href="${escapeHtml(url)}" target="_blank" rel="noopener" title="Audit in ClickUp">${value}<span class="audit-arrow" aria-hidden="true">↗</span></a>`;
+    const tip = taskName ? `Audit in ClickUp: ${taskName}` : "Audit in ClickUp";
+    return `<a class="audit-link" href="${escapeHtml(url)}" target="_blank" rel="noopener" title="${escapeHtml(tip)}">${value}<span class="audit-arrow" aria-hidden="true">↗</span></a>`;
   }
 
   taskLinkCell(name, taskId) {
@@ -225,6 +230,27 @@ export class ReportView {
       <div class="empty-state-description">${escapeHtml(message)}</div></div></div>`;
   }
 
+  // Loading / empty / error placeholders with an optional action button. The
+  // dashboard uses this so the user is never stuck on a blank "connecting" card.
+  /**
+   * @param {"loading"|"empty"|"error"} kind
+   * @param {string} message
+   * @param {{ actionLabel?: string, actionEvent?: string }} [opts]
+   */
+  renderState(kind, message, { actionLabel, actionEvent } = {}) {
+    this.report = null;
+    const icon = kind === "error" ? "⚠️" : kind === "loading" ? "⏳" : "📊";
+    const title = kind === "error" ? "Couldn’t load data" : kind === "loading" ? "Loading…" : "No report yet";
+    const action = actionLabel
+      ? `<button class="btn btn-primary btn-sm mt-3" data-state-action="${escapeHtml(actionEvent || "")}">${escapeHtml(actionLabel)}</button>`
+      : "";
+    this.root.innerHTML = `<div class="card"><div class="empty-state">
+      <div class="empty-state-icon">${icon}</div>
+      <div class="empty-state-title">${escapeHtml(title)}</div>
+      <div class="empty-state-description">${escapeHtml(message)}</div>
+      ${action}</div></div>`;
+  }
+
   onClick(e) {
     const tab = e.target.closest("[data-view]");
     if (tab) {
@@ -241,6 +267,11 @@ export class ReportView {
     const gen = e.target.closest("[data-action='generate-invoices']");
     if (gen && !gen.disabled) {
       this.root.dispatchEvent(new CustomEvent("generate-invoices", { bubbles: true }));
+      return;
+    }
+    const stateBtn = e.target.closest("[data-state-action]");
+    if (stateBtn) {
+      this.root.dispatchEvent(new CustomEvent(stateBtn.dataset.stateAction || "retry", { bubbles: true }));
       return;
     }
     const exp = e.target.closest("[data-export]");

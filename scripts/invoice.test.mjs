@@ -27,8 +27,8 @@ test("invoice lines never expose cost or margin", () => {
     for (const forbidden of ["cost", "margin", "grossProfit", "costRate", "profit"]) {
       assert.ok(!keys.includes(forbidden), `line must not expose "${forbidden}"`);
     }
-    // The client-facing fields plus an internal lastMs timestamp for the audit link.
-    assert.deepEqual(keys.sort(), ["amount", "hours", "lastMs", "project", "rate"]);
+    // The client-facing fields plus an internal taskId for the audit link.
+    assert.deepEqual(keys.sort(), ["amount", "hours", "project", "rate", "taskId"]);
   }
 });
 

@@ -2,7 +2,7 @@ import { buildInvoices, invoiceNumber, dueDate } from "./src/invoice.js";
 import { formatMoney } from "./src/margin.js";
 import { loadSettings } from "./src/storage.js";
 import { escapeHtml, dateStamp } from "./src/dom.js";
-import { timesheetWeekUrl } from "./src/clickup-links.js";
+import { taskUrl } from "./src/clickup-links.js";
 
 const HANDOFF_KEY = "clickup-margin-invoice-data";
 
@@ -89,9 +89,9 @@ function sheetHtml(inv, number) {
 
   const lines = inv.lines
     .map((l) => {
-      const auditUrl = timesheetWeekUrl(inv.workspaceId, l.lastMs);
-      // The project label is an audit link on screen; the .audit-arrow is hidden
-      // in print so the client-facing invoice stays clean.
+      const auditUrl = taskUrl(l.taskId);
+      // The project label is an audit link on screen (to the project's top task);
+      // the .audit-arrow is hidden in print so the client-facing invoice is clean.
       const projectCell = auditUrl
         ? `<a class="audit-link" href="${escapeHtml(auditUrl)}" target="_blank" rel="noopener" title="Audit in ClickUp">${escapeHtml(l.project)}<span class="audit-arrow no-print" aria-hidden="true">↗</span></a>`
         : escapeHtml(l.project);

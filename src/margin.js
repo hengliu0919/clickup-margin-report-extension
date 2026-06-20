@@ -116,7 +116,7 @@ export function buildMarginReport({ entries, tasksById, peopleRates, projectRate
     const userName = person?.username || user.name || `User ${user.id || "unknown"}`;
     const taskName = task?.name || entry.task?.name || taskId || "Unknown task";
     const whenMs = Number(entry.start || entry.start_date || entry.at || 0) || 0;
-    const audit = { hours, billable, revenue, cost, grossProfit, estimated, whenMs, taskId };
+    const audit = { hours, billable, revenue, cost, grossProfit, estimated, whenMs, taskId, taskName };
 
     accumulate(projectTotals, key, () => ({
       key,
@@ -198,7 +198,7 @@ export function buildMarginReport({ entries, tasksById, peopleRates, projectRate
   };
 }
 
-function accumulate(map, key, makeBase, { hours, billable, revenue, cost, grossProfit, estimated, whenMs = 0 }) {
+function accumulate(map, key, makeBase, { hours, billable, revenue, cost, grossProfit, estimated, whenMs = 0, taskId = "", taskName = "" }) {
   if (!map.has(key)) {
     map.set(key, {
       ...makeBase(),
@@ -208,7 +208,8 @@ function accumulate(map, key, makeBase, { hours, billable, revenue, cost, grossP
       cost: 0,
       grossProfit: 0,
       estimatedRevenue: 0,
-      lastMs: 0, // most recent entry timestamp in this group (for timesheet deep-link)
+      lastMs: 0, // most recent entry timestamp in this group
+      taskHours: new Map(), // taskId -> { hours, name } so we can pick the top task
     });
   }
   const total = map.get(key);
@@ -219,11 +220,32 @@ function accumulate(map, key, makeBase, { hours, billable, revenue, cost, grossP
   total.grossProfit += grossProfit;
   if (estimated) total.estimatedRevenue += revenue;
   if (whenMs > total.lastMs) total.lastMs = whenMs;
+  if (taskId) {
+    const t = total.taskHours.get(taskId) || { hours: 0, name: taskName };
+    t.hours += hours;
+    if (taskName) t.name = taskName;
+    total.taskHours.set(taskId, t);
+  }
 }
 
 function finishGroup(total) {
+  // The group's "top task" — the task with the most tracked hours — is the most
+  // representative single ClickUp target to deep-link for audit.
+  let topTaskId = "";
+  let topTaskName = "";
+  let topHours = -1;
+  for (const [id, t] of total.taskHours || []) {
+    if (t.hours > topHours) {
+      topHours = t.hours;
+      topTaskId = id;
+      topTaskName = t.name || "";
+    }
+  }
+  const { taskHours, ...rest } = total;
   return {
-    ...total,
+    ...rest,
+    topTaskId,
+    topTaskName,
     trackedHours: round(total.trackedHours),
     billableHours: round(total.billableHours),
     revenue: round(total.revenue),
