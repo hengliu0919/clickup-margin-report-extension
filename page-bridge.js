@@ -6,8 +6,12 @@
   const CONTENT_INIT = "clickup-margin-report-content-init";
   const CONTENT_HELLO = "clickup-margin-report-content-hello";
   // Internal ClickUp endpoints, centralized so an API change is a one-line edit.
-  const frontdoorBase = "https://frontdoor-prod-us-east-2-2.clickup.com";
+  // ClickUp shards every workspace onto a regional "frontdoor" cluster. We resolve
+  // the right host per-workspace at runtime (see resolveFrontdoorBase); this is
+  // only the last-resort default if discovery fails.
+  const DEFAULT_FRONTDOOR_BASE = "https://frontdoor-prod-us-east-2-2.clickup.com";
   const identityBase = "https://id.app.clickup.com";
+  const frontdoorBaseCache = new Map();
   const PAGE_COUNT = 100;
   const MAX_PAGES = 50; // safety bound on the pagination loop (5000 tasks/user-week)
   const MAX_CONCURRENCY = 5; // bound the user-week fan-out to avoid rate limiting
@@ -83,12 +87,60 @@
     return workspaceId;
   }
 
+  // Resolve the frontdoor host for this workspace. ClickUp's web app stashes the
+  // per-workspace environment under localStorage.cuHandshake, keyed by workspace
+  // id; appEnvironment.apiUrlBase is the exact frontdoor cluster the app itself
+  // talks to. Reading that (rather than hardcoding one shard) is what lets the
+  // report work for workspaces on any region — a different shard returns
+  // "not_found_or_authorized" for a workspace it doesn't host.
+  function resolveFrontdoorBase(workspaceId) {
+    const cached = frontdoorBaseCache.get(workspaceId);
+    if (cached) return cached;
+
+    const base = frontdoorBaseFromHandshake(workspaceId) || DEFAULT_FRONTDOOR_BASE;
+    frontdoorBaseCache.set(workspaceId, base);
+    return base;
+  }
+
+  function frontdoorBaseFromHandshake(workspaceId) {
+    let handshake;
+    try {
+      handshake = JSON.parse(localStorage.getItem("cuHandshake") || "{}");
+    } catch {
+      return null;
+    }
+    const entry = handshake?.[workspaceId];
+    if (!entry) return null;
+
+    // Prefer the explicit base the app uses; trim a trailing /v1, /v2, etc. as a
+    // fallback if only a versioned apiUrl is present.
+    const env = entry.appEnvironment || {};
+    const explicit = env.apiUrlBase || env.autoPaywallServiceUrl;
+    if (typeof explicit === "string" && /^https:\/\/[\w.-]+\.clickup\.com/i.test(explicit)) {
+      return stripTrailingSlash(explicit.replace(/\/v\d+.*$/i, ""));
+    }
+    const versioned = env.apiUrl || env.apiUrlV2;
+    if (typeof versioned === "string") {
+      const m = versioned.match(/^https:\/\/[\w.-]+\.clickup\.com/i);
+      if (m) return m[0];
+    }
+    // Last resort: reconstruct from the shard id (e.g. "prod-us-east-2-2").
+    if (typeof entry.shardId === "string" && /^[\w-]+$/.test(entry.shardId)) {
+      return `https://frontdoor-${entry.shardId}.clickup.com`;
+    }
+    return null;
+  }
+
+  function stripTrailingSlash(url) {
+    return url.replace(/\/+$/, "");
+  }
+
   async function getAccessToken(workspaceId, { force = false } = {}) {
     const cached = tokenCache.get(workspaceId);
     const nowSeconds = Math.floor(Date.now() / 1000);
     if (!force && cached && cached.expiration - 60 > nowSeconds) return cached.token;
 
-    const triggerSource = encodeURIComponent(`${frontdoorBase}/user/v1/user`);
+    const triggerSource = encodeURIComponent(`${resolveFrontdoorBase(workspaceId)}/user/v1/user`);
     const url = `${identityBase}/data/v3/workspaces/${workspaceId}/authentication/access_tokens?trigger_source=${triggerSource}`;
     const res = await fetchWithRetry(url, { method: "POST", credentials: "include" });
     const body = await parseJson(res);
@@ -102,7 +154,7 @@
 
   async function frontdoor(workspaceId, path, { allowReauth = true } = {}) {
     const token = await getAccessToken(workspaceId);
-    const res = await fetchWithRetry(`${frontdoorBase}${path}`, {
+    const res = await fetchWithRetry(`${resolveFrontdoorBase(workspaceId)}${path}`, {
       credentials: "include",
       headers: { Authorization: `Bearer ${token}` },
     });
