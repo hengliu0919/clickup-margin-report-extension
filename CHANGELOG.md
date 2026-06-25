@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.1
+
+### Fixed
+- **"not_found_or_authorized" on every report** — the ClickUp API host was
+  pinned to a single regional cluster, so workspaces hosted on any other region
+  failed to load data (despite showing "Connected to ClickUp"). The extension
+  now discovers the correct per-workspace host at runtime.
+
 ## 0.2.0
 
 A large release. The extension went from a popup + two separate pages to a
